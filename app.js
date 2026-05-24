@@ -407,8 +407,8 @@ function calcVisit(){
   setText('pv-laku',laku+' bungkus');
   setText('pv-omzet',idr(omzet));
   setText('pv-laba',idr(laba));
-  setText('pv-retur',sisa+' bungkus kembali ke gudang Ilham');
-  setText('pv-stok-baru',(sisa+refill)+' bungkus');
+  setText('pv-retur',sisa+' bungkus ditarik & masuk gudang Ilham');
+  setText('pv-stok-baru',refill+' bungkus');
   el('prev-visit').classList.add('show');
 }
 
@@ -423,7 +423,7 @@ async function simpanVisit(){
   const bayarKe=v('v-bayar-ke'),bayarNom=+v('v-bayar-nom')||0;
   const tgl=v('v-tgl');
   if(refill>ST.gudang){toast('Stok gudang Ilham tidak cukup! (ada: '+ST.gudang+')');return;}
-  const newStok=sisa+refill-rusak;
+  const newStok=refill-rusak;
   await sb('PATCH','outlets',{stok:newStok,last_visit:tgl,total_laku:(o.total_laku||0)+laku,total_omzet:(o.total_omzet||0)+omzet},'?id=eq.'+o.id);
   OUTLETS[+idx]={...o,stok:newStok,last_visit:tgl,total_laku:(o.total_laku||0)+laku,total_omzet:(o.total_omzet||0)+omzet};
   const visitRow={outlet_id:o.id,outlet_nama:o.nama,stok_awal:o.stok,sisa,laku,refill,rusak,omzet,laba,hpp,bayar_ke:bayarKe,bayar_nom:bayarNom,tgl};
