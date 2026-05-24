@@ -401,13 +401,14 @@ function calcVisit(){
   const idx=v('v-outlet');
   if(!idx||v('v-sisa')===''){el('prev-visit').classList.remove('show');return;}
   const o=OUTLETS[+idx];
-  const sisa=+v('v-sisa'),refill=+v('v-refill')||0;
+  const sisa=+v('v-sisa'),refill=+v('v-refill')||0,rusak=+v('v-rusak')||0;
   const laku=Math.max(0,o.stok-sisa);
+  const returGudang=Math.max(0,sisa-rusak);
   const omzet=laku*HARGA_JUAL,hpp=lastHPP(),laba=laku*(HARGA_JUAL-hpp);
   setText('pv-laku',laku+' bungkus');
   setText('pv-omzet',idr(omzet));
   setText('pv-laba',idr(laba));
-  setText('pv-retur',sisa+' bungkus ditarik & masuk gudang Ilham');
+  setText('pv-retur',returGudang+' bungkus balik ke gudang Ilham'+(rusak>0?' ('+rusak+' rusak dibuang)':''));
   setText('pv-stok-baru',refill+' bungkus');
   el('prev-visit').classList.add('show');
 }
@@ -430,7 +431,7 @@ async function simpanVisit(){
   const res=await sb('POST','visits',visitRow);
   if(res&&res.length)VISITS.unshift(res[0]);else VISITS.unshift(visitRow);
   const stPatch={
-    gudang:ST.gudang-refill+sisa-rusak,
+    gudang:ST.gudang-refill+(sisa-rusak),
     total_omzet:ST.total_omzet+omzet,total_hpp:ST.total_hpp+laku*hpp,
     laba_akum:ST.laba_akum+laba,laba_u:ST.laba_u+laba,
     week_omzet:ST.week_omzet+omzet,week_laba:ST.week_laba+laba
