@@ -706,5 +706,40 @@ function renderJurnal() {
     </div>`).join('');
 }
 
+// ─── RESET DATA ───────────────────────────────────────────
+async function resetData() {
+  if (ROLE !== 'owner') { toast('Hanya owner yang bisa reset data'); return; }
+  const step1 = confirm('⚠️ HAPUS SEMUA DATA?\n\nIni akan menghapus:\n- Semua outlet\n- Semua visit\n- Semua produksi\n- Semua kasbon\n- Semua jurnal\n- Reset neraca ke nol\n\nLanjut?');
+  if (!step1) return;
+  const step2 = confirm('❗ YAKIN BANGET?\n\nData yang dihapus TIDAK BISA dikembalikan.\n\nKetik OK untuk konfirmasi.');
+  if (!step2) return;
+
+  toast('Menghapus data...');
+  try {
+    await sb('DELETE', 'visits', null, '?id=neq.00000000-0000-0000-0000-000000000000');
+    await sb('DELETE', 'kasbon', null, '?id=neq.00000000-0000-0000-0000-000000000000');
+    await sb('DELETE', 'closing', null, '?id=neq.00000000-0000-0000-0000-000000000000');
+    await sb('DELETE', 'jurnal', null, '?id=neq.00000000-0000-0000-0000-000000000000');
+    await sb('DELETE', 'produksi', null, '?id=neq.00000000-0000-0000-0000-000000000000');
+    await sb('DELETE', 'outlets', null, '?id=neq.00000000-0000-0000-0000-000000000000');
+    await saveState({
+      kas: 0, bank: 0, stok_kal: 0, gudang: 0,
+      piutang: 0, hutang_sup: 4320000, dana_cad: 0,
+      modal: 15000000, laba_akum: 0, laba_u: 0,
+      motor_bayar: 0, motor_lunas: false,
+      total_omzet: 0, total_hpp: 0,
+      week_omzet: 0, week_laba: 0,
+      setup: false
+    });
+    OUTLETS = []; PRODUKSI = []; VISITS = [];
+    KASBON = []; CLOSING = []; JURNAL = [];
+    toast('✅ Semua data berhasil dihapus!');
+    renderAll();
+  } catch (e) {
+    toast('Gagal hapus data: ' + e.message);
+    console.error(e);
+  }
+}
+
 // ─── START ────────────────────────────────────────────────
 init();
