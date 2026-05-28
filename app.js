@@ -517,9 +517,9 @@ function renderListVisit(){
 }
 
 // ─── BAGI HASIL STATUS ────────────────────────────────────
-let bhOwnerStatus = 'belum'; // 'ambil' | 'belum'
-let bhIlhamStatus = 'kasbon'; // 'tunai' | 'kasbon' | 'sebagian'
-let bhMotorStatus = 'belum'; // 'bayar' | 'belum'
+let bhOwnerStatus = null; // 'ambil' | 'belum' — harus dipilih dulu
+let bhIlhamStatus = null; // 'tunai' | 'kasbon' | 'sebagian' — harus dipilih dulu
+let bhMotorStatus = null; // 'bayar' | 'belum' — harus dipilih dulu
 
 function setOwnerStatus(s){
   bhOwnerStatus=s;
@@ -595,7 +595,7 @@ function prevBH(){
   // Default status
   setOwnerStatus('belum');
   setIlhamStatus('kasbon');
-  setMotorStatus('belum');
+  setMotorStatus('bayar');
   updateIlhamNet();
   el('prev-bh').classList.add('show');
 }
@@ -610,6 +610,9 @@ async function simpanClosing(){
   let bhData={};
   if(bhLaba>0){
     if(bhLaba>ST.laba_u){toast('Melebihi laba tersedia ('+idr(ST.laba_u)+')');return;}
+    if(!bhOwnerStatus){toast('Pilih status fee owner dulu!');return;}
+    if(!bhIlhamStatus){toast('Pilih pembayaran fee Ilham dulu!');return;}
+    if(!bhMotorStatus){toast('Pilih status cicilan motor dulu!');return;}
     const lunas=ST.motor_lunas;
     const owner=Math.floor(bhLaba*(lunas?0.51:0.55));
     const mitra=Math.floor(bhLaba*(lunas?0.45:0.35));
