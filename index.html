@@ -392,6 +392,16 @@
   <div class="page" id="page-closing">
     <div class="alert alert-ok">✅ Closing mingguan — lakukan tiap akhir pekan.</div>
 
+    <div class="sec">Input manual omzet & laba <span class="badge badge-amber" style="margin-left:4px;vertical-align:middle">kalau belum via visit</span></div>
+    <div class="card">
+      <div class="fg" style="margin-bottom:10px">
+        <div><label>Omzet (Rp)</label><input type="number" id="manual-omzet" placeholder="cth: 5978000"></div>
+        <div><label>Laba bersih (Rp)</label><input type="number" id="manual-laba" placeholder="cth: 1086600"></div>
+      </div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:8px">Gunakan ini untuk input omzet & laba periode sebelumnya yang belum tercatat via visit</div>
+      <button class="btn btn-primary" onclick="inputManualOmzet()">+ Input Omzet & Laba</button>
+    </div>
+
     <div class="sec">Ringkasan minggu ini</div>
     <div class="card">
       <div class="row"><span class="row-label">Omzet minggu ini</span><span class="tg tb" id="cl-omzet-week">Rp0</span></div>
