@@ -421,8 +421,7 @@
     <div class="card">
       <label>Laba yang dibagi (Rp) — kosongkan kalau skip</label>
       <input type="number" id="bh-input" placeholder="0" oninput="prevBH()">
-      <label>Owner terima di</label>
-      <select id="bh-ke"><option value="kas">Kas KBB</option><option value="bank">Bank Mandiri</option></select>
+      <input type="hidden" id="bh-ke" value="kas">
       <div class="preview" id="prev-bh">
         <div class="feebar" id="bh-bar"></div>
         <div class="divider"></div>
