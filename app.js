@@ -382,16 +382,12 @@ function renderVisitSelect(){
   const sel=el('v-outlet');if(!sel)return;
   const areaSel=el('v-area');
   const selectedArea=areaSel?areaSel.value:'';
-  
-  // Populate area dropdown
   if(areaSel){
     const areas=[...new Set(OUTLETS.map(o=>o.alamat||'').filter(a=>a))].sort();
     const curArea=areaSel.value;
     areaSel.innerHTML='<option value="">-- semua area --</option>'+
       areas.map(a=>`<option value="${a}" ${curArea===a?'selected':''}>${a}</option>`).join('');
   }
-  
-  // Filter outlets by area, use ID as value
   const cur=sel.value;
   const filtered=OUTLETS.filter(o=>!selectedArea||o.alamat===selectedArea);
   sel.innerHTML='<option value="">-- pilih warung --</option>'+
