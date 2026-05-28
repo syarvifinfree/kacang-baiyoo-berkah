@@ -815,6 +815,29 @@ async function konfirmasiImport(){
   renderAll();
 }
 
+// ─── INPUT MANUAL OMZET & LABA ───────────────────────────
+async function inputManualOmzet(){
+  if(ROLE!=='owner'){toast('Hanya owner');return;}
+  const omzet=+v('manual-omzet');
+  const laba=+v('manual-laba');
+  if(!omzet||!laba){toast('Isi omzet dan laba');return;}
+  if(!confirm(`Input manual:\nOmzet: ${idr(omzet)}\nLaba: ${idr(laba)}\n\nLanjut?`))return;
+  
+  await saveState({
+    total_omzet: ST.total_omzet+omzet,
+    laba_akum: ST.laba_akum+laba,
+    laba_u: ST.laba_u+laba,
+    week_omzet: ST.week_omzet+omzet,
+    week_laba: ST.week_laba+laba
+  });
+  
+  await addJurnal('closing', `Input manual: omzet ${idr(omzet,true)} | laba ${idr(laba,true)}`);
+  setv('manual-omzet','');
+  setv('manual-laba','');
+  toast('✅ Omzet & laba berhasil diinput!');
+  renderAll();
+}
+
 // ─── INIT ─────────────────────────────────────────────────
 async function init(){
   const saved=sessionStorage.getItem('kbb_user');
