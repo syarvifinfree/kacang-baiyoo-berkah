@@ -391,12 +391,11 @@ function renderVisitSelect(){
       areas.map(a=>`<option value="${a}" ${curArea===a?'selected':''}>${a}</option>`).join('');
   }
   
-  // Filter outlets by area
+  // Filter outlets by area, use ID as value
   const cur=sel.value;
-  const filtered=OUTLETS.map((o,i)=>({...o,idx:i}))
-    .filter(o=>!selectedArea||o.alamat===selectedArea);
+  const filtered=OUTLETS.filter(o=>!selectedArea||o.alamat===selectedArea);
   sel.innerHTML='<option value="">-- pilih warung --</option>'+
-    filtered.map(o=>`<option value="${o.idx}" ${cur==o.idx?'selected':''}>${o.nama}</option>`).join('');
+    filtered.map(o=>`<option value="${o.id}" ${cur===o.id?'selected':''}>${o.nama}</option>`).join('');
 }
 
 function filterOutletByArea(){
@@ -404,20 +403,19 @@ function filterOutletByArea(){
   const sel=el('v-outlet');
   if(!sel||!areaSel)return;
   const selectedArea=areaSel.value;
-  const filtered=OUTLETS.map((o,i)=>({...o,idx:i}))
-    .filter(o=>!selectedArea||o.alamat===selectedArea);
+  const filtered=OUTLETS.filter(o=>!selectedArea||o.alamat===selectedArea);
   sel.innerHTML='<option value="">-- pilih warung --</option>'+
-    filtered.map(o=>`<option value="${o.idx}">${o.nama}</option>`).join('');
-  // Reset outlet selection & preview
+    filtered.map(o=>`<option value="${o.id}">${o.nama}</option>`).join('');
   el('prev-visit').classList.remove('show');
   el('prev-v-info').style.display='none';
 }
 
 function prevVisitOutlet(){
-  const idx=v('v-outlet');
+  const id=v('v-outlet');
   const info=el('prev-v-info');
-  if(!idx){if(info)info.style.display='none';return;}
-  const o=OUTLETS[+idx];
+  if(!id){if(info)info.style.display='none';return;}
+  const o=OUTLETS.find(o=>o.id===id);
+  if(!o){if(info)info.style.display='none';return;}
   setText('pvi-stok',o.stok+' bungkus');
   const d=daysSince(o.last_visit);
   setText('pvi-last',o.last_visit?o.last_visit+' ('+d+' hari lalu)':'Belum pernah');
@@ -426,9 +424,10 @@ function prevVisitOutlet(){
 }
 
 function calcVisit(){
-  const idx=v('v-outlet');
-  if(!idx||v('v-sisa')===''){el('prev-visit').classList.remove('show');return;}
-  const o=OUTLETS[+idx];
+  const id=v('v-outlet');
+  if(!id||v('v-sisa')===''){el('prev-visit').classList.remove('show');return;}
+  const o=OUTLETS.find(o=>o.id===id);
+  if(!o){el('prev-visit').classList.remove('show');return;}
   const sisa=+v('v-sisa'),refill=+v('v-refill')||0,rusak=+v('v-rusak')||0;
   const laku=Math.max(0,o.stok-sisa);
   const returGudang=Math.max(0,sisa-rusak);
@@ -442,10 +441,11 @@ function calcVisit(){
 }
 
 async function simpanVisit(){
-  const idx=v('v-outlet');
-  if(!idx){toast('Pilih outlet dulu');return;}
+  const id=v('v-outlet');
+  if(!id){toast('Pilih outlet dulu');return;}
   if(v('v-sisa')===''){toast('Isi sisa bungkus');return;}
-  const o=OUTLETS[+idx];
+  const o=OUTLETS.find(o=>o.id===id);
+  if(!o){toast('Outlet tidak ditemukan');return;}
   const sisa=+v('v-sisa'),refill=+v('v-refill')||0,rusak=+v('v-rusak')||0;
   const laku=Math.max(0,o.stok-sisa);
   const omzet=laku*HARGA_JUAL,hpp=lastHPP(),laba=laku*(HARGA_JUAL-hpp);
@@ -454,7 +454,8 @@ async function simpanVisit(){
   if(refill>ST.gudang){toast('Stok gudang Ilham tidak cukup! (ada: '+ST.gudang+')');return;}
   const newStok=refill-rusak;
   await sb('PATCH','outlets',{stok:newStok,last_visit:tgl,total_laku:(o.total_laku||0)+laku,total_omzet:(o.total_omzet||0)+omzet},'?id=eq.'+o.id);
-  OUTLETS[+idx]={...o,stok:newStok,last_visit:tgl,total_laku:(o.total_laku||0)+laku,total_omzet:(o.total_omzet||0)+omzet};
+  const oIdx=OUTLETS.findIndex(x=>x.id===id);
+  if(oIdx>=0)OUTLETS[oIdx]={...o,stok:newStok,last_visit:tgl,total_laku:(o.total_laku||0)+laku,total_omzet:(o.total_omzet||0)+omzet};
   const visitRow={outlet_id:o.id,outlet_nama:o.nama,stok_awal:o.stok,sisa,laku,refill,rusak,omzet,laba,hpp,bayar_ke:bayarKe,bayar_nom:bayarNom,tgl};
   const res=await sb('POST','visits',visitRow);
   if(res&&res.length)VISITS.unshift(res[0]);else VISITS.unshift(visitRow);
@@ -472,6 +473,8 @@ async function simpanVisit(){
   setv('v-sisa','');setv('v-refill','');setv('v-bayar-nom','');setv('v-rusak','0');
   el('prev-visit').classList.remove('show');
   el('prev-v-info').style.display='none';
+  setv('v-area','');
+  renderVisitSelect();
   el('v-outlet').value='';
   toast(`✅ Visit ${o.nama}: ${laku} bungkus laku`);
   renderAll();
