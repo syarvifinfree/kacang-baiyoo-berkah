@@ -605,31 +605,40 @@ async function simpanClosing(){
   const pribadi=+v('cl-pribadi')||0;
   const bhLaba=+v('bh-input')||0;
   const ke=v('bh-ke');
-  const patch={};
-  if(pribadi>0)patch.kas=(ST.kas||0)+pribadi;
-  let bhData={};
+
   if(bhLaba>0){
     if(bhLaba>ST.laba_u){toast('Melebihi laba tersedia ('+idr(ST.laba_u)+')');return;}
     if(!bhOwnerStatus){toast('Pilih status fee owner dulu!');return;}
     if(!bhIlhamStatus){toast('Pilih pembayaran fee Ilham dulu!');return;}
     if(!bhMotorStatus){toast('Pilih status cicilan motor dulu!');return;}
-    const lunas=ST.motor_lunas;
-    const owner=Math.floor(bhLaba*(lunas?0.51:0.55));
-    const mitra=Math.floor(bhLaba*(lunas?0.45:0.35));
-    const motor=bhLaba-(owner+mitra+(lunas?Math.floor(bhLaba*0.04):0));
-    const cad=lunas?bhLaba-(owner+mitra+motor):0;
-    
-    // Hitung potong kasbon sesuai pilihan
-    let pot=0;
-    if(bhIlhamStatus==='kasbon'){
-      pot=Math.min(kasbonAktif(),mitra);
-    } else if(bhIlhamStatus==='sebagian'){
-      const tunai=+v('ilham-tunai-nom')||0;
-      const sisa=mitra-tunai;
-      pot=Math.min(kasbonAktif(),sisa);
-    }
-    
-    // Lunaskan kasbon sesuai potongan
+  }
+
+  // Konfirmasi sebelum simpan
+  const lunas=ST.motor_lunas;
+  const owner=Math.floor(bhLaba*(lunas?0.51:0.55));
+  const mitra=Math.floor(bhLaba*(lunas?0.45:0.35));
+  const motor=bhLaba-(owner+mitra+(lunas?Math.floor(bhLaba*0.04):0));
+  const cad=lunas?bhLaba-(owner+mitra+motor):0;
+  let pot=0;
+  if(bhIlhamStatus==='kasbon') pot=Math.min(kasbonAktif(),mitra);
+  else if(bhIlhamStatus==='sebagian'){const t=+v('ilham-tunai-nom')||0;pot=Math.min(kasbonAktif(),mitra-t);}
+
+  const konfirmasi=confirm(
+    '=== KONFIRMASI CLOSING ===\n\n'+
+    '👑 Fee Owner: '+idr(owner)+' — '+(bhOwnerStatus==='ambil'?'KAS BERKURANG':'Belum diambil')+
+    '\n🏍 Fee Ilham: '+idr(mitra)+(pot>0?' — Potong kasbon Rp'+idr(pot):'— Bayar tunai')+
+    '\n🔧 Cicilan Motor: '+idr(motor)+' — '+(bhMotorStatus==='bayar'?'MOTOR UPDATE':'Belum dibayar')+
+    '\n\nKas KBB berkurang: '+idr((bhOwnerStatus==='ambil'?owner:0)+(bhMotorStatus==='bayar'?motor:0))+
+    '\nSisa kasbon Ilham: '+idr(Math.max(0,kasbonAktif()-pot))+
+    '\n\nLanjut simpan?'
+  );
+  if(!konfirmasi)return;
+
+  const patch={};
+  if(pribadi>0)patch.kas=(ST.kas||0)+pribadi;
+  let bhData={};
+  if(bhLaba>0){
+    // Potong kasbon sebagian (bukan lunas, kecuali memang habis)
     if(pot>0){
       let s=pot;
       for(const k of KASBON){
@@ -638,28 +647,27 @@ async function simpanClosing(){
             await sb('PATCH','kasbon',{lunas:true},'?id=eq.'+k.id);
             k.lunas=true;s-=k.nom;
           } else {
-            // Potong sebagian — update nominal kasbon
             await sb('PATCH','kasbon',{nom:k.nom-s},'?id=eq.'+k.id);
             k.nom=k.nom-s;s=0;
           }
         }
       }
     }
-    
-    // Fee owner — tambah ke kas kalau sudah diambil
+
+    // Fee owner — kurangi kas kalau sudah diambil
     if(bhOwnerStatus==='ambil'){
-      if(ke==='kas')patch.kas=(patch.kas||ST.kas)+owner;
-      else patch.bank=ST.bank+owner;
+      patch.kas=(patch.kas||ST.kas)-owner;
     }
-    
+
     // Motor — update kalau sudah dibayar
     if(bhMotorStatus==='bayar'){
       patch.motor_bayar=Math.min(MOTOR_NILAI,ST.motor_bayar+motor);
       patch.motor_lunas=patch.motor_bayar>=MOTOR_NILAI;
     }
-    
+
     patch.dana_cad=ST.dana_cad+cad;
     patch.laba_u=Math.max(0,ST.laba_u-bhLaba);
+    patch.laba_akum=ST.laba_akum+bhLaba;
     bhData={
       bh_laba:bhLaba,bh_owner:owner,bh_mitra:mitra,bh_motor:motor,bh_cad:cad,bh_pot:pot,
       bh_skema:lunas?'51/45/4':'55/35/10',
