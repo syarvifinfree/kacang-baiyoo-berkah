@@ -516,6 +516,65 @@ function renderListVisit(){
     </div>`).join('');
 }
 
+// ─── BAGI HASIL STATUS ────────────────────────────────────
+let bhOwnerStatus = 'belum'; // 'ambil' | 'belum'
+let bhIlhamStatus = 'kasbon'; // 'tunai' | 'kasbon' | 'sebagian'
+let bhMotorStatus = 'belum'; // 'bayar' | 'belum'
+
+function setOwnerStatus(s){
+  bhOwnerStatus=s;
+  el('btn-owner-ambil').style.background=s==='ambil'?'var(--text)':'';
+  el('btn-owner-ambil').style.color=s==='ambil'?'var(--bg)':'';
+  el('btn-owner-belum').style.background=s==='belum'?'var(--amber-bg)':'';
+}
+
+function setIlhamStatus(s){
+  bhIlhamStatus=s;
+  ['tunai','kasbon','sebagian'].forEach(x=>{
+    const b=el('btn-ilham-'+x);
+    if(b){b.style.background='';b.style.color='';}
+  });
+  const active=el('btn-ilham-'+s);
+  if(active){active.style.background='var(--text)';active.style.color='var(--bg)';}
+  el('ilham-sebagian-input').style.display=s==='sebagian'?'block':'none';
+  updateIlhamNet();
+}
+
+function setMotorStatus(s){
+  bhMotorStatus=s;
+  el('btn-motor-bayar').style.background=s==='bayar'?'var(--text)':'';
+  el('btn-motor-bayar').style.color=s==='bayar'?'var(--bg)':'';
+  el('btn-motor-belum').style.background=s==='belum'?'var(--amber-bg)':'';
+}
+
+function hitungSebagian(){
+  updateIlhamNet();
+}
+
+function updateIlhamNet(){
+  const laba=+v('bh-input');
+  if(!laba)return;
+  const lunas=ST.motor_lunas;
+  const mitra=Math.floor(laba*(lunas?0.45:0.35));
+  const kasbon=kasbonAktif();
+  let net=0, pot=0;
+  if(bhIlhamStatus==='tunai'){
+    net=mitra; pot=0;
+  } else if(bhIlhamStatus==='kasbon'){
+    pot=Math.min(kasbon,mitra);
+    net=mitra-pot;
+  } else if(bhIlhamStatus==='sebagian'){
+    const tunai=+v('ilham-tunai-nom')||0;
+    const sisa=mitra-tunai;
+    pot=Math.min(kasbon,sisa);
+    net=tunai+(sisa-pot);
+  }
+  setText('bh-net',idr(net));
+  setText('bh-pot',pot>0?'-'+idr(pot):'-');
+  setText('bh-sisa-kasbon',idr(Math.max(0,kasbon-pot)));
+  if(el('ilham-kasbon-pot'))setText('ilham-kasbon-pot',idr(pot));
+}
+
 // ─── CLOSING ──────────────────────────────────────────────
 function prevBH(){
   const laba=+v('bh-input');
@@ -532,6 +591,12 @@ function prevBH(){
   setText('bh-owner',idr(owner));setText('bh-mitra',idr(mitra));
   setText('bh-pot',pot>0?'-'+idr(pot):'-');setText('bh-net',idr(mitra-pot));
   setText('bh-cicil',idr(motor));setText('bh-cad',idr(cad));
+  if(cad>0)el('row-cad').style.display='flex';else el('row-cad').style.display='none';
+  // Default status
+  setOwnerStatus('belum');
+  setIlhamStatus('kasbon');
+  setMotorStatus('belum');
+  updateIlhamNet();
   el('prev-bh').classList.add('show');
 }
 
@@ -550,20 +615,55 @@ async function simpanClosing(){
     const mitra=Math.floor(bhLaba*(lunas?0.45:0.35));
     const motor=bhLaba-(owner+mitra+(lunas?Math.floor(bhLaba*0.04):0));
     const cad=lunas?bhLaba-(owner+mitra+motor):0;
-    const pot=Math.min(kasbonAktif(),mitra);
+    
+    // Hitung potong kasbon sesuai pilihan
+    let pot=0;
+    if(bhIlhamStatus==='kasbon'){
+      pot=Math.min(kasbonAktif(),mitra);
+    } else if(bhIlhamStatus==='sebagian'){
+      const tunai=+v('ilham-tunai-nom')||0;
+      const sisa=mitra-tunai;
+      pot=Math.min(kasbonAktif(),sisa);
+    }
+    
+    // Lunaskan kasbon sesuai potongan
     if(pot>0){
       let s=pot;
       for(const k of KASBON){
-        if(!k.lunas&&s>0){await sb('PATCH','kasbon',{lunas:true},'?id=eq.'+k.id);k.lunas=true;s-=k.nom;}
+        if(!k.lunas&&s>0){
+          if(s>=k.nom){
+            await sb('PATCH','kasbon',{lunas:true},'?id=eq.'+k.id);
+            k.lunas=true;s-=k.nom;
+          } else {
+            // Potong sebagian — update nominal kasbon
+            await sb('PATCH','kasbon',{nom:k.nom-s},'?id=eq.'+k.id);
+            k.nom=k.nom-s;s=0;
+          }
+        }
       }
     }
-    if(ke==='kas')patch.kas=(patch.kas||ST.kas)+owner;
-    else patch.bank=ST.bank+owner;
-    patch.motor_bayar=Math.min(MOTOR_NILAI,ST.motor_bayar+motor);
-    patch.motor_lunas=patch.motor_bayar>=MOTOR_NILAI;
+    
+    // Fee owner — tambah ke kas kalau sudah diambil
+    if(bhOwnerStatus==='ambil'){
+      if(ke==='kas')patch.kas=(patch.kas||ST.kas)+owner;
+      else patch.bank=ST.bank+owner;
+    }
+    
+    // Motor — update kalau sudah dibayar
+    if(bhMotorStatus==='bayar'){
+      patch.motor_bayar=Math.min(MOTOR_NILAI,ST.motor_bayar+motor);
+      patch.motor_lunas=patch.motor_bayar>=MOTOR_NILAI;
+    }
+    
     patch.dana_cad=ST.dana_cad+cad;
     patch.laba_u=Math.max(0,ST.laba_u-bhLaba);
-    bhData={bh_laba:bhLaba,bh_owner:owner,bh_mitra:mitra,bh_motor:motor,bh_cad:cad,bh_pot:pot,bh_skema:lunas?'51/45/4':'55/35/10'};
+    bhData={
+      bh_laba:bhLaba,bh_owner:owner,bh_mitra:mitra,bh_motor:motor,bh_cad:cad,bh_pot:pot,
+      bh_skema:lunas?'51/45/4':'55/35/10',
+      bh_owner_status:bhOwnerStatus,
+      bh_ilham_status:bhIlhamStatus,
+      bh_motor_status:bhMotorStatus
+    };
   }
   const closingRow={omzet_week:ST.week_omzet,laba_week:ST.week_laba,pribadi,tgl:today(),...bhData};
   const res=await sb('POST','closing',closingRow);
