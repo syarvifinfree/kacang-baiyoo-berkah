@@ -37,8 +37,8 @@ function today(){return new Date().toISOString().split('T')[0];}
 function daysSince(d){if(!d)return 999;return Math.floor((new Date()-new Date(d))/86400000);}
 function idr(n,s=false){
   n=Math.round(n||0);
-  if(s&&Math.abs(n)>=1000000)return'Rp'+(n/1000000).toFixed(1)+'jt';
-  if(s&&Math.abs(n)>=1000)return'Rp'+(n/1000).toFixed(0)+'rb';
+  if(s&&Math.abs(n)>=1000000)return'Rp'+(n/1000000).toFixed(3).replace(/\.?0+$/,'')+'jt';
+  if(s&&Math.abs(n)>=1000)return'Rp'+n.toLocaleString('id');
   return'Rp'+n.toLocaleString('id');
 }
 function v(id){return document.getElementById(id)?.value||'';}
@@ -521,10 +521,10 @@ function prevBH(){
   const laba=+v('bh-input');
   if(!laba||laba>ST.laba_u){el('prev-bh').classList.remove('show');return;}
   const lunas=ST.motor_lunas;
-  const owner=Math.round(laba*(lunas?0.51:0.55));
-  const mitra=Math.round(laba*(lunas?0.45:0.35));
-  const motor=Math.round(lunas?0:laba*0.10);
-  const cad=Math.round(lunas?laba*0.04:0);
+  const owner=Math.floor(laba*(lunas?0.51:0.55));
+  const mitra=Math.floor(laba*(lunas?0.45:0.35));
+  const motor=laba-(owner+mitra+(lunas?Math.floor(laba*0.04):0));
+  const cad=lunas?laba-(owner+mitra+motor):0;
   const pot=Math.min(kasbonAktif(),mitra);
   el('bh-bar').innerHTML=lunas
     ?`<div class="feseg" style="width:51%;background:#1c1c1c">Lo 51%</div><div class="feseg" style="width:45%;background:#5f5e5a">Ilham 45%</div><div class="feseg" style="width:4%;background:#888">4%</div>`
@@ -546,10 +546,10 @@ async function simpanClosing(){
   if(bhLaba>0){
     if(bhLaba>ST.laba_u){toast('Melebihi laba tersedia ('+idr(ST.laba_u)+')');return;}
     const lunas=ST.motor_lunas;
-    const owner=Math.round(bhLaba*(lunas?0.51:0.55));
-    const mitra=Math.round(bhLaba*(lunas?0.45:0.35));
-    const motor=Math.round(lunas?0:bhLaba*0.10);
-    const cad=Math.round(lunas?bhLaba*0.04:0);
+    const owner=Math.floor(bhLaba*(lunas?0.51:0.55));
+    const mitra=Math.floor(bhLaba*(lunas?0.45:0.35));
+    const motor=bhLaba-(owner+mitra+(lunas?Math.floor(bhLaba*0.04):0));
+    const cad=lunas?bhLaba-(owner+mitra+motor):0;
     const pot=Math.min(kasbonAktif(),mitra);
     if(pot>0){
       let s=pot;
@@ -596,7 +596,16 @@ function renderListClosing(){
       <div class="row"><span class="row-label">Omzet minggu</span><span class="tg">${idr(c.omzet_week)}</span></div>
       <div class="row"><span class="row-label">Laba minggu</span><span class="tg">${idr(c.laba_week)}</span></div>
       ${c.pribadi?`<div class="row"><span class="row-label">Ganti uang pribadi</span><span class="ti">${idr(c.pribadi)}</span></div>`:''}
-      ${c.bh_laba?`<div class="row"><span class="row-label">Bagi hasil</span><span class="badge badge-green">${idr(c.bh_laba,true)} | ${c.bh_skema}</span></div>`:''}
+      ${c.bh_laba?`
+      <div class="divider"></div>
+      <div class="row"><span class="row-label" style="font-weight:600">Bagi Hasil — ${c.bh_skema}</span><span class="badge badge-green">${idr(c.bh_laba)}</span></div>
+      <div class="row"><span class="row-label">👑 Owner dapat</span><span class="tg">${idr(c.bh_owner)}</span></div>
+      <div class="row"><span class="row-label">🏍 Ilham (kotor)</span><span>${idr(c.bh_mitra)}</span></div>
+      <div class="row"><span class="row-label">✂️ Potong kasbon</span><span class="tr">-${idr(c.bh_pot)}</span></div>
+      <div class="row"><span class="row-label">🏍 Ilham terima bersih</span><span class="tg">${idr(c.bh_mitra-c.bh_pot)}</span></div>
+      <div class="row"><span class="row-label">🏍 Cicilan motor</span><span>${idr(c.bh_motor)}</span></div>
+      ${c.bh_cad?`<div class="row"><span class="row-label">💰 Dana cadangan</span><span class="tg">${idr(c.bh_cad)}</span></div>`:''}
+      `:''}
     </div>`).join('');
 }
 
