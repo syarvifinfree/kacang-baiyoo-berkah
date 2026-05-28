@@ -380,9 +380,37 @@ function renderAlarm(){
 
 function renderVisitSelect(){
   const sel=el('v-outlet');if(!sel)return;
+  const areaSel=el('v-area');
+  const selectedArea=areaSel?areaSel.value:'';
+  
+  // Populate area dropdown
+  if(areaSel){
+    const areas=[...new Set(OUTLETS.map(o=>o.alamat||'').filter(a=>a))].sort();
+    const curArea=areaSel.value;
+    areaSel.innerHTML='<option value="">-- semua area --</option>'+
+      areas.map(a=>`<option value="${a}" ${curArea===a?'selected':''}>${a}</option>`).join('');
+  }
+  
+  // Filter outlets by area
   const cur=sel.value;
+  const filtered=OUTLETS.map((o,i)=>({...o,idx:i}))
+    .filter(o=>!selectedArea||o.alamat===selectedArea);
   sel.innerHTML='<option value="">-- pilih warung --</option>'+
-    OUTLETS.map((o,i)=>`<option value="${i}" ${cur==i?'selected':''}>${o.nama}</option>`).join('');
+    filtered.map(o=>`<option value="${o.idx}" ${cur==o.idx?'selected':''}>${o.nama}</option>`).join('');
+}
+
+function filterOutletByArea(){
+  const areaSel=el('v-area');
+  const sel=el('v-outlet');
+  if(!sel||!areaSel)return;
+  const selectedArea=areaSel.value;
+  const filtered=OUTLETS.map((o,i)=>({...o,idx:i}))
+    .filter(o=>!selectedArea||o.alamat===selectedArea);
+  sel.innerHTML='<option value="">-- pilih warung --</option>'+
+    filtered.map(o=>`<option value="${o.idx}">${o.nama}</option>`).join('');
+  // Reset outlet selection & preview
+  el('prev-visit').classList.remove('show');
+  el('prev-v-info').style.display='none';
 }
 
 function prevVisitOutlet(){
@@ -705,6 +733,87 @@ async function resetData(){
     OUTLETS=[];PRODUKSI=[];VISITS=[];KASBON=[];CLOSING=[];JURNAL=[];
     toast('✅ Semua data berhasil dihapus!');renderAll();
   }catch(e){toast('Gagal: '+e.message);console.error(e);}
+}
+
+
+// ─── IMPORT OUTLET DARI EXCEL/CSV ─────────────────────────
+function downloadTemplate(){
+  const csv = 'NAMA,ALAMAT,STOK_AWAL,TANGGAL_PENGISIAN_TERAKHIR\nWarung Bu Sari,Jl. Merdeka No.1,25,2026-05-24\nWarkop Pak Joko,Jl. Sudirman No.5,50,2026-05-20';
+  const blob = new Blob([csv], {type:'text/csv'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'template_outlet_KBB.csv';
+  a.click();
+}
+
+async function importOutlet(){
+  const file = el('import-file').files[0];
+  if(!file){toast('Pilih file dulu');return;}
+  
+  const text = await file.text();
+  const lines = text.trim().split('\n');
+  
+  // Skip header
+  const rows = lines.slice(1).filter(l=>l.trim());
+  if(!rows.length){toast('File kosong atau format salah');return;}
+  
+  const preview = [];
+  for(const row of rows){
+    // Handle both comma and semicolon separator
+    const cols = row.split(/[,;]/).map(c=>c.trim().replace(/^"|"$/g,''));
+    if(!cols[0])continue;
+    preview.push({
+      nama: cols[0]||'',
+      alamat: cols[1]||'',
+      stok: parseInt(cols[2])||0,
+      last_visit: cols[3]||null
+    });
+  }
+  
+  if(!preview.length){toast('Tidak ada data valid');return;}
+  
+  // Show preview
+  el('import-preview-list').innerHTML = preview.map((o,i)=>`
+    <div class="row">
+      <span style="font-size:12px">${o.nama} — ${o.alamat||'-'}</span>
+      <span class="badge badge-gray">${o.stok} bungkus</span>
+    </div>`).join('');
+  el('import-preview').style.display='block';
+  el('import-preview').dataset.rows = JSON.stringify(preview);
+  setText('import-count', preview.length+' outlet siap diimport');
+}
+
+async function konfirmasiImport(){
+  const rows = JSON.parse(el('import-preview').dataset.rows||'[]');
+  if(!rows.length)return;
+  
+  let sukses=0, gagal=0;
+  toast('Mengimport '+rows.length+' outlet...', 10000);
+  
+  for(const o of rows){
+    try{
+      const row = {
+        nama: o.nama,
+        alamat: o.alamat,
+        stok: o.stok||0,
+        last_visit: o.last_visit||null,
+        total_laku: 0,
+        total_omzet: 0,
+        tgl_mulai: today()
+      };
+      const res = await sb('POST','outlets',row);
+      if(res&&res.length)OUTLETS.push(res[0]);
+      else OUTLETS.push(row);
+      sukses++;
+    }catch(e){gagal++;console.error(e);}
+  }
+  
+  el('import-preview').style.display='none';
+  el('import-file').value='';
+  closeModal('modal-import');
+  await addJurnal('outlet',`Import ${sukses} outlet dari Excel`);
+  toast(`✅ ${sukses} outlet berhasil diimport${gagal>0?' | '+gagal+' gagal':''}`);
+  renderAll();
 }
 
 // ─── INIT ─────────────────────────────────────────────────
