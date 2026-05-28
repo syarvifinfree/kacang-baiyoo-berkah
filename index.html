@@ -425,12 +425,43 @@
       <select id="bh-ke"><option value="kas">Kas KBB</option><option value="bank">Bank Mandiri</option></select>
       <div class="preview" id="prev-bh">
         <div class="feebar" id="bh-bar"></div>
-        <div class="row"><span class="row-label">Owner (lo)</span><span class="tg" id="bh-owner">-</span></div>
-        <div class="row"><span class="row-label">Ilham (kotor)</span><span id="bh-mitra">-</span></div>
-        <div class="row"><span class="row-label">Potong kasbon</span><span class="tr" id="bh-pot">-</span></div>
-        <div class="row"><span class="row-label tb">Ilham terima bersih</span><span class="tg tb" id="bh-net">-</span></div>
-        <div class="row"><span class="row-label">Cicilan motor</span><span id="bh-cicil">-</span></div>
-        <div class="row"><span class="row-label">Dana cadangan</span><span class="tg" id="bh-cad">-</span></div>
+        <div class="divider"></div>
+        <div class="row"><span class="row-label tb">👑 Fee Owner</span><span class="tg tb" id="bh-owner">-</span></div>
+        <div style="margin:6px 0 10px">
+          <label style="margin-bottom:4px">Fee owner sudah diambil?</label>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-sm" id="btn-owner-ambil" onclick="setOwnerStatus('ambil')" style="flex:1">✅ Sudah diambil</button>
+            <button class="btn btn-sm" id="btn-owner-belum" onclick="setOwnerStatus('belum')" style="flex:1;border-color:var(--amber);color:var(--amber)">⏳ Belum diambil</button>
+          </div>
+        </div>
+        <div class="divider"></div>
+        <div class="row"><span class="row-label tb">🏍 Fee Ilham (kotor)</span><span id="bh-mitra">-</span></div>
+        <div style="margin:6px 0 10px">
+          <label style="margin-bottom:4px">Pembayaran fee Ilham</label>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-sm" id="btn-ilham-tunai" onclick="setIlhamStatus('tunai')" style="flex:1">💵 Bayar tunai</button>
+            <button class="btn btn-sm" id="btn-ilham-kasbon" onclick="setIlhamStatus('kasbon')" style="flex:1">✂️ Potong kasbon</button>
+            <button class="btn btn-sm" id="btn-ilham-sebagian" onclick="setIlhamStatus('sebagian')" style="flex:1">⚖️ Sebagian</button>
+          </div>
+          <div id="ilham-sebagian-input" style="display:none;margin-top:8px">
+            <label>Bayar tunai (Rp)</label>
+            <input type="number" id="ilham-tunai-nom" placeholder="0" oninput="hitungSebagian()">
+            <div class="row"><span class="row-label">Potong kasbon</span><span id="ilham-kasbon-pot">-</span></div>
+          </div>
+        </div>
+        <div class="row"><span class="row-label">Ilham terima bersih</span><span class="tg tb" id="bh-net">-</span></div>
+        <div class="row"><span class="row-label">Sisa kasbon Ilham</span><span class="tr" id="bh-sisa-kasbon">-</span></div>
+        <div class="divider"></div>
+        <div class="divider"></div>
+        <div class="row"><span class="row-label tb">🏍 Cicilan Motor</span><span id="bh-cicil">-</span></div>
+        <div style="margin:6px 0 10px">
+          <label style="margin-bottom:4px">Cicilan motor sudah dibayar?</label>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-sm" id="btn-motor-bayar" onclick="setMotorStatus('bayar')" style="flex:1">✅ Sudah dibayar</button>
+            <button class="btn btn-sm" id="btn-motor-belum" onclick="setMotorStatus('belum')" style="flex:1;border-color:var(--amber);color:var(--amber)">⏳ Belum dibayar</button>
+          </div>
+        </div>
+        <div class="row" id="row-cad" style="display:none"><span class="row-label">💰 Dana cadangan</span><span class="tg" id="bh-cad">-</span></div>
       </div>
       <button class="btn btn-primary" onclick="simpanClosing()">✅ Simpan Closing</button>
     </div>
