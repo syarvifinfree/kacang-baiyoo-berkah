@@ -4,15 +4,12 @@ const SUPABASE_KEY = 'sb_publishable_ejStt_s0v6R9gzF3pOojAA_Bpq2jzD6';
 const HARGA_JUAL = 1600;
 const MOTOR_NILAI = 6000000;
 
-let ROLE = null;
-let USER = null;
+let ROLE = null, USER = null;
 let ST = {
-  kas:0,bank:0,stok_kal:0,gudang:0,
-  piutang:0,hutang_sup:4320000,dana_cad:0,
-  modal:15000000,laba_akum:0,laba_u:0,
+  kas:0,bank:0,stok_kal:0,gudang:0,piutang:0,hutang_sup:4320000,
+  dana_cad:0,modal:15000000,laba_akum:0,laba_u:0,
   motor_bayar:0,motor_lunas:false,
-  total_omzet:0,total_hpp:0,
-  week_omzet:0,week_laba:0,setup:false
+  total_omzet:0,total_hpp:0,week_omzet:0,week_laba:0,setup:false
 };
 let OUTLETS=[],PRODUKSI=[],VISITS=[],KASBON=[],CLOSING=[],JURNAL=[];
 
@@ -20,10 +17,8 @@ let OUTLETS=[],PRODUKSI=[],VISITS=[],KASBON=[],CLOSING=[],JURNAL=[];
 async function sb(method,table,body=null,query=''){
   const url=`${SUPABASE_URL}/rest/v1/${table}${query}`;
   const headers={
-    'apikey':SUPABASE_KEY,
-    'Authorization':`Bearer ${SUPABASE_KEY}`,
-    'Content-Type':'application/json',
-    'Prefer':'return=representation'
+    'apikey':SUPABASE_KEY,'Authorization':`Bearer ${SUPABASE_KEY}`,
+    'Content-Type':'application/json','Prefer':'return=representation'
   };
   const res=await fetch(url,{method,headers,body:body?JSON.stringify(body):null});
   if(!res.ok){const e=await res.text();throw new Error(e);}
@@ -59,6 +54,7 @@ function toast(msg,dur=2500){
 function kasbonAktif(){return KASBON.filter(k=>!k.lunas).reduce((s,k)=>s+(k.nom||0),0);}
 function lastHPP(){return PRODUKSI.length?PRODUKSI[0].hpp:1150;}
 function outletStokTotal(){return OUTLETS.reduce((s,o)=>s+(o.stok||0),0);}
+
 function gp(id,btn){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
@@ -69,6 +65,7 @@ function gp(id,btn){
 function openModal(id){el(id).classList.add('open');}
 function closeModal(id){el(id).classList.remove('open');}
 function closeModalOut(e,id){if(e.target.id===id)closeModal(id);}
+
 async function addJurnal(tipe,ket,tgl=null){
   const row={tipe,keterangan:ket,tgl:tgl||today()};
   await sb('POST','jurnal',row);
@@ -76,14 +73,8 @@ async function addJurnal(tipe,ket,tgl=null){
 }
 
 // ─── LOGIN ────────────────────────────────────────────────
-function showLogin(){
-  el('login-screen').style.display='flex';
-  el('app-screen').style.display='none';
-}
-function showApp(){
-  el('login-screen').style.display='none';
-  el('app-screen').style.display='block';
-}
+function showLogin(){el('login-screen').style.display='flex';el('app-screen').style.display='none';}
+function showApp(){el('login-screen').style.display='none';el('app-screen').style.display='block';}
 
 async function doLogin(){
   const pin=v('login-pin');
@@ -92,22 +83,14 @@ async function doLogin(){
     const users=await sb('GET','users',null,`?pin=eq.${pin}`);
     if(!users||!users.length){
       el('login-error').textContent='PIN salah. Coba lagi.';
-      setv('login-pin','');
-      return;
+      setv('login-pin','');return;
     }
-    USER=users[0];
-    ROLE=USER.role;
+    USER=users[0];ROLE=USER.role;
     sessionStorage.setItem('kbb_user',JSON.stringify(USER));
     el('login-error').textContent='';
-    showApp();
-    setupNav();
-    setDates();
-    await loadAll();
-    renderAll();
-  }catch(e){
-    el('login-error').textContent='Gagal koneksi. Coba lagi.';
-    console.error(e);
-  }
+    showApp();setupNav();setDates();
+    await loadAll();renderAll();
+  }catch(e){el('login-error').textContent='Gagal koneksi. Coba lagi.';console.error(e);}
 }
 
 function doLogout(){
@@ -115,8 +98,7 @@ function doLogout(){
   sessionStorage.removeItem('kbb_user');
   USER=null;ROLE=null;
   OUTLETS=[];PRODUKSI=[];VISITS=[];KASBON=[];CLOSING=[];JURNAL=[];
-  setv('login-pin','');
-  showLogin();
+  setv('login-pin','');showLogin();
 }
 
 async function gantiPin(){
@@ -142,7 +124,6 @@ function setupNav(){
     document.querySelectorAll('.nav-btn').forEach(b=>{
       if(['Neraca','Closing','Jurnal'].includes(b.textContent.trim()))b.style.display='none';
     });
-    // Default ke outlet untuk mitra
     const firstBtn=document.querySelector('.nav-btn:not([style*="none"])');
     if(firstBtn){
       document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
@@ -183,26 +164,20 @@ function renderAll(){
   hBadge.className='badge '+(ok?'badge-green':'badge-amber');
 }
 
+// ─── NERACA ───────────────────────────────────────────────
 function renderNeraca(){
-  setText('n-kas',idr(ST.kas,true));
-  setText('n-bank',idr(ST.bank,true));
-  setText('n-kal',ST.stok_kal+' kaleng');
-  setText('n-gudang',ST.gudang+' bungkus');
+  setText('n-kas',idr(ST.kas,true));setText('n-bank',idr(ST.bank,true));
+  setText('n-kal',ST.stok_kal+' kaleng');setText('n-gudang',ST.gudang+' bungkus');
   setText('n-outlet-stok',outletStokTotal()+' bungkus');
-  setText('n-piutang',idr(ST.piutang,true));
-  setText('n-hsup',idr(ST.hutang_sup,true));
-  setText('n-cad',idr(ST.dana_cad,true));
-  setText('n-modal',idr(ST.modal,true));
-  setText('n-laba',idr(ST.laba_akum,true));
-  setText('n-labau',idr(ST.laba_u,true));
-  setText('kb-kas',idr(ST.kas,true));
-  setText('kb-bank',idr(ST.bank,true));
+  setText('n-piutang',idr(ST.piutang,true));setText('n-hsup',idr(ST.hutang_sup,true));
+  setText('n-cad',idr(ST.dana_cad,true));setText('n-modal',idr(ST.modal,true));
+  setText('n-laba',idr(ST.laba_akum,true));setText('n-labau',idr(ST.laba_u,true));
+  setText('kb-kas',idr(ST.kas,true));setText('kb-bank',idr(ST.bank,true));
   setText('kb-hsup',idr(ST.hutang_sup,true));
   const needVisit=OUTLETS.filter(o=>daysSince(o.last_visit)>=7).length;
   function setk(id,ok,yes,no){
     const e=el(id);if(!e)return;
-    e.textContent=ok?yes:no;
-    e.className='badge '+(ok?'badge-green':'badge-red');
+    e.textContent=ok?yes:no;e.className='badge '+(ok?'badge-green':'badge-red');
   }
   setk('k1',ST.stok_kal>=0&&ST.gudang>=0,'Aman','Cek stok');
   setk('k2',ST.piutang<2000000,'Aman','Numpuk');
@@ -212,13 +187,11 @@ function renderNeraca(){
 }
 
 function updateClosingSum(){
-  setText('cl-omzet-week',idr(ST.week_omzet));
-  setText('cl-laba-week',idr(ST.week_laba));
-  setText('cl-labau',idr(ST.laba_u));
-  setText('cl-kasbon',idr(kasbonAktif()));
+  setText('cl-omzet-week',idr(ST.week_omzet));setText('cl-laba-week',idr(ST.week_laba));
+  setText('cl-labau',idr(ST.laba_u));setText('cl-kasbon',idr(kasbonAktif()));
 }
 
-// ─── SETUP ────────────────────────────────────────────────
+// ─── SETUP SALDO AWAL ─────────────────────────────────────
 async function simpanSetup(){
   if(ROLE!=='owner'){toast('Hanya owner');return;}
   const patch={
@@ -228,8 +201,7 @@ async function simpanSetup(){
   };
   await saveState(patch);
   await addJurnal('setup','Saldo awal KBB dikunci');
-  toast('✅ Saldo awal tersimpan & dikunci!');
-  renderAll();
+  toast('✅ Saldo awal tersimpan & dikunci!');renderAll();
 }
 
 // ─── PRODUKSI ─────────────────────────────────────────────
@@ -240,12 +212,9 @@ function prevProd(){
   const hppK=Math.round((kal*hkal)/bungkus);
   const totP=plastik*bungkus,totU=upah*bungkus,totKas=totP+totU;
   const hpp=hppK+upah+plastik,margin=HARGA_JUAL-hpp;
-  setText('pp-kacang',idr(hppK));
-  setText('pp-plastik-tot',idr(totP));
-  setText('pp-upah-tot',idr(totU));
-  setText('pp-kas',idr(totKas));
-  setText('pp-hpp',idr(hpp));
-  setText('pp-margin',idr(margin)+' ('+Math.round(margin/HARGA_JUAL*100)+'%)');
+  setText('pp-kacang',idr(hppK));setText('pp-plastik-tot',idr(totP));
+  setText('pp-upah-tot',idr(totU));setText('pp-kas',idr(totKas));
+  setText('pp-hpp',idr(hpp));setText('pp-margin',idr(margin)+' ('+Math.round(margin/HARGA_JUAL*100)+'%)');
   el('prev-prod').classList.add('show');
 }
 
@@ -266,8 +235,7 @@ async function simpanProduksi(){
   await addJurnal('produksi',`Produksi ${bungkus} bungkus dari ${kal} kaleng | HPP ${idr(hpp)}/bungkus`,tgl);
   setv('pr-kal','');setv('pr-bungkus','');
   el('prev-prod').classList.remove('show');
-  toast('✅ Produksi dicatat! '+bungkus+' bungkus masuk gudang');
-  renderAll();
+  toast('✅ Produksi dicatat! '+bungkus+' bungkus masuk gudang');renderAll();
 }
 
 async function hapusProduksi(id,kal,bungkus,totKas){
@@ -302,12 +270,11 @@ async function simpanOutlet(){
   setv('no-nama','');setv('no-alamat','');
   closeModal('modal-outlet');
   await addJurnal('outlet',`Outlet baru: ${nama}`,tgl);
-  toast('✅ Outlet '+nama+' ditambahkan');
-  renderAll();
+  toast('✅ Outlet '+nama+' ditambahkan');renderAll();
 }
 
 async function hapusOutlet(id,nama){
-  if(!confirm('Hapus outlet '+nama+'?\n\nSemua data visit outlet ini tetap tersimpan.'))return;
+  if(!confirm('Hapus outlet '+nama+'?'))return;
   await sb('DELETE','outlets',null,'?id=eq.'+id);
   OUTLETS=OUTLETS.filter(o=>o.id!==id);
   toast('✅ Outlet dihapus');renderAll();
@@ -326,9 +293,8 @@ async function editOutletStok(id,nama,stokLama){
 function renderOutlets(){
   const q=(v('search-outlet')||'').toLowerCase();
   const list=OUTLETS.filter(o=>!q||o.nama.toLowerCase().includes(q)||(o.alamat||'').toLowerCase().includes(q));
-  const total=OUTLETS.length;
+  setText('outlet-sum',OUTLETS.length+' outlet aktif');
   const alarm=OUTLETS.filter(o=>daysSince(o.last_visit)>=7).length;
-  setText('outlet-sum',total+' outlet aktif');
   setText('outlet-alarm-sum',alarm>0?'⚠️ '+alarm+' perlu dikunjungi':'✅ Semua sudah dikunjungi');
   const e=el('list-outlet');
   if(!list.length){e.innerHTML='<div class="empty">Belum ada outlet</div>';return;}
@@ -395,8 +361,7 @@ function renderVisitSelect(){
 }
 
 function filterOutletByArea(){
-  const areaSel=el('v-area');
-  const sel=el('v-outlet');
+  const areaSel=el('v-area'),sel=el('v-outlet');
   if(!sel||!areaSel)return;
   const selectedArea=areaSel.value;
   const filtered=OUTLETS.filter(o=>!selectedArea||o.alamat===selectedArea);
@@ -431,7 +396,7 @@ function calcVisit(){
   setText('pv-laku',laku+' bungkus');
   setText('pv-omzet',idr(omzet));
   setText('pv-laba',idr(laba));
-  setText('pv-retur',returGudang+' bungkus balik ke gudang Ilham'+(rusak>0?' ('+rusak+' rusak dibuang)':''));
+  setText('pv-retur',returGudang+' bungkus balik ke gudang'+(rusak>0?' ('+rusak+' rusak dibuang)':''));
   setText('pv-stok-baru',refill+' bungkus');
   el('prev-visit').classList.add('show');
 }
@@ -447,7 +412,7 @@ async function simpanVisit(){
   const omzet=laku*HARGA_JUAL,hpp=lastHPP(),laba=laku*(HARGA_JUAL-hpp);
   const bayarKe=v('v-bayar-ke'),bayarNom=+v('v-bayar-nom')||0;
   const tgl=v('v-tgl');
-  if(refill>ST.gudang){toast('Stok gudang Ilham tidak cukup! (ada: '+ST.gudang+')');return;}
+  if(refill>ST.gudang){toast('Stok gudang tidak cukup! (ada: '+ST.gudang+')');return;}
   const newStok=refill-rusak;
   await sb('PATCH','outlets',{stok:newStok,last_visit:tgl,total_laku:(o.total_laku||0)+laku,total_omzet:(o.total_omzet||0)+omzet},'?id=eq.'+o.id);
   const oIdx=OUTLETS.findIndex(x=>x.id===id);
@@ -471,7 +436,6 @@ async function simpanVisit(){
   el('prev-v-info').style.display='none';
   setv('v-area','');
   renderVisitSelect();
-  el('v-outlet').value='';
   toast(`✅ Visit ${o.nama}: ${laku} bungkus laku`);
   renderAll();
 }
@@ -480,12 +444,10 @@ async function hapusVisit(id,laku,omzet,laba,hpp,bayarKe,bayarNom,refill,sisa,ru
   if(!confirm('Hapus data visit ini? Stok & keuangan akan dibalikkan.'))return;
   await sb('DELETE','visits',null,'?id=eq.'+id);
   VISITS=VISITS.filter(v=>v.id!==id);
-  // Balikkan stok outlet
   const o=OUTLETS.find(o=>o.id===outletId);
   if(o){
-    const revertStok=stokLama;
-    await sb('PATCH','outlets',{stok:revertStok,total_laku:Math.max(0,(o.total_laku||0)-laku),total_omzet:Math.max(0,(o.total_omzet||0)-omzet)},'?id=eq.'+outletId);
-    o.stok=revertStok;o.total_laku=Math.max(0,(o.total_laku||0)-laku);o.total_omzet=Math.max(0,(o.total_omzet||0)-omzet);
+    await sb('PATCH','outlets',{stok:stokLama,total_laku:Math.max(0,(o.total_laku||0)-laku),total_omzet:Math.max(0,(o.total_omzet||0)-omzet)},'?id=eq.'+outletId);
+    o.stok=stokLama;o.total_laku=Math.max(0,(o.total_laku||0)-laku);o.total_omzet=Math.max(0,(o.total_omzet||0)-omzet);
   }
   const stPatch={
     gudang:ST.gudang+refill-sisa+rusak,
@@ -508,269 +470,380 @@ function renderListVisit(){
       <div class="row"><span class="row-label tb">${v.outlet_nama}</span><span style="color:var(--text3)">${v.tgl}</span></div>
       <div class="row"><span class="row-label">Laku</span><span class="tg tb">${v.laku} bungkus</span></div>
       <div class="row"><span class="row-label">Omzet</span><span class="tg">${idr(v.omzet)}</span></div>
-      <div class="row"><span class="row-label">Sisa retur gudang</span><span class="ta">${v.sisa} bungkus</span></div>
-      <div class="row"><span class="row-label">Refill</span><span class="ti">${v.refill} bungkus</span></div>
+      <div class="row"><span class="row-label">Sisa retur gudang</span><span>${v.sisa} bungkus</span></div>
+      <div class="row"><span class="row-label">Refill</span><span>${v.refill} bungkus</span></div>
       ${v.rusak?`<div class="row"><span class="row-label">Rusak</span><span class="tr">${v.rusak} bungkus</span></div>`:''}
       <div class="row"><span class="row-label">Bayar</span><span>${idr(v.bayar_nom)} → ${v.bayar_ke==='bon'?'bon':v.bayar_ke}</span></div>
-      ${ROLE==='owner'?`<button class="btn btn-danger btn-sm" style="margin-top:6px" onclick="hapusVisit('${v.id}',${v.laku},${v.omzet},${v.laba},${v.hpp},'${v.bayar_ke}',${v.bayar_nom},${v.refill},${v.sisa},${v.rusak},'${v.outlet_id}',${v.stok_awal})">🗑 Hapus Visit</button>`:''}
+      ${ROLE==='owner'?`<button class="btn btn-danger btn-sm" style="margin-top:6px" onclick="hapusVisit('${v.id}',${v.laku},${v.omzet},${v.laba},${v.hpp},'${v.bayar_ke}',${v.bayar_nom},${v.refill},${v.sisa},${v.rusak||0},'${v.outlet_id}',${v.stok_awal})">🗑 Hapus Visit</button>`:''}
     </div>`).join('');
 }
 
-// ─── BAGI HASIL STATUS ────────────────────────────────────
-let bhOwnerStatus = null;
-let bhIlhamStatus = null;
-let bhMotorStatus = null;
+// ─── CLOSING ──────────────────────────────────────────────
+let bhOwnerStatus=null,bhIlhamStatus=null,bhMotorStatus=null;
 
 function setOwnerStatus(s){
-  bhOwnerStatus = s;
-  el('btn-owner-ambil').className = 'btn btn-sm' + (s==='ambil'?' btn-active':'');
-  el('btn-owner-belum').className = 'btn btn-sm' + (s==='belum'?' btn-active':'');
+  bhOwnerStatus=s;
+  el('btn-owner-ambil').className='btn btn-sm'+(s==='ambil'?' btn-active':'');
+  el('btn-owner-belum').className='btn btn-sm'+(s==='belum'?' btn-active':'');
 }
 
 function setIlhamStatus(s){
-  bhIlhamStatus = s;
+  bhIlhamStatus=s;
   ['tunai','kasbon','sebagian'].forEach(x=>{
-    const b = el('btn-ilham-'+x);
-    if(b) b.className = 'btn btn-sm' + (s===x?' btn-active':'');
+    const b=el('btn-ilham-'+x);
+    if(b)b.className='btn btn-sm'+(s===x?' btn-active':'');
   });
-  el('ilham-sebagian-input').style.display = s==='sebagian'?'block':'none';
+  el('ilham-sebagian-input').style.display=s==='sebagian'?'block':'none';
   hitungIlham();
 }
 
 function setMotorStatus(s){
-  bhMotorStatus = s;
-  el('btn-motor-bayar').className = 'btn btn-sm' + (s==='bayar'?' btn-active':'');
-  el('btn-motor-belum').className = 'btn btn-sm' + (s==='belum'?' btn-active':'');
+  bhMotorStatus=s;
+  el('btn-motor-bayar').className='btn btn-sm'+(s==='bayar'?' btn-active':'');
+  el('btn-motor-belum').className='btn btn-sm'+(s==='belum'?' btn-active':'');
 }
 
 function hitungIlham(){
-  const laba = +v('bh-input');
-  if(!laba) return;
-  const lunas = ST.motor_lunas;
-  const mitra = Math.floor(laba*(lunas?0.45:0.35));
-  const kasbon = kasbonAktif();
-  let pot = 0, net = 0;
-  if(bhIlhamStatus==='tunai'){
-    net = mitra; pot = 0;
-  } else if(bhIlhamStatus==='kasbon'){
-    pot = Math.min(kasbon, mitra);
-    net = mitra - pot;
-  } else if(bhIlhamStatus==='sebagian'){
-    const tunai = +v('ilham-tunai-nom')||0;
-    const sisa = mitra - tunai;
-    pot = Math.min(kasbon, sisa);
-    net = tunai + (sisa - pot);
+  const laba=+v('bh-input');if(!laba)return;
+  const lunas=ST.motor_lunas;
+  const mitra=Math.floor(laba*(lunas?0.45:0.35));
+  const kasbon=kasbonAktif();
+  let pot=0,net=0;
+  if(bhIlhamStatus==='tunai'){net=mitra;pot=0;}
+  else if(bhIlhamStatus==='kasbon'){pot=Math.min(kasbon,mitra);net=mitra-pot;}
+  else if(bhIlhamStatus==='sebagian'){
+    const tunai=+v('ilham-tunai-nom')||0;
+    pot=Math.min(kasbon,Math.max(0,mitra-tunai));
+    net=tunai;
   }
-  setText('bh-net', idr(net));
-  setText('bh-pot', pot>0?'-'+idr(pot):'-');
-  setText('bh-sisa-kasbon', idr(Math.max(0, kasbon-pot)));
-  if(el('ilham-kasbon-pot')) setText('ilham-kasbon-pot', idr(pot));
+  setText('bh-net',idr(net));
+  setText('bh-pot',pot>0?'-'+idr(pot):'-');
+  setText('bh-sisa-kasbon',idr(Math.max(0,kasbon-pot)));
+  if(el('ilham-kasbon-pot'))setText('ilham-kasbon-pot',idr(pot));
 }
 
-function prevBH(){
-  const laba = +v('bh-input');
-  if(!laba){el('prev-bh').classList.remove('show');return;}
-  if(laba > ST.laba_u){
-    toast('Melebihi laba tersedia: '+idr(ST.laba_u));
-    el('prev-bh').classList.remove('show');
-    return;
-  }
-  const lunas = ST.motor_lunas;
-  const owner = Math.floor(laba*(lunas?0.51:0.55));
-  const mitra = Math.floor(laba*(lunas?0.45:0.35));
-  const motor = laba - owner - mitra - (lunas?Math.floor(laba*0.04):0);
-  const cad = lunas ? laba - owner - mitra - motor : 0;
+function hitungSebagian(){hitungIlham();}
 
-  el('bh-bar').innerHTML = lunas
+function prevBH(){
+  const laba=+v('bh-input');
+  if(!laba){el('prev-bh').classList.remove('show');return;}
+  if(laba>ST.laba_u){toast('Melebihi laba tersedia: '+idr(ST.laba_u));el('prev-bh').classList.remove('show');return;}
+  const lunas=ST.motor_lunas;
+  const owner=Math.floor(laba*(lunas?0.51:0.55));
+  const mitra=Math.floor(laba*(lunas?0.45:0.35));
+  const motor=laba-owner-mitra-(lunas?Math.floor(laba*0.04):0);
+  const cad=lunas?laba-owner-mitra-motor:0;
+  el('bh-bar').innerHTML=lunas
     ?`<div class="feseg" style="width:51%;background:#1c1c1c">Lo 51%</div><div class="feseg" style="width:45%;background:#5f5e5a">Ilham 45%</div><div class="feseg" style="width:4%;background:#888">4%</div>`
     :`<div class="feseg" style="width:55%;background:#1c1c1c">Lo 55%</div><div class="feseg" style="width:35%;background:#5f5e5a">Ilham 35%</div><div class="feseg" style="width:10%;background:#888">Mtr</div>`;
-
-  setText('bh-owner', idr(owner));
-  setText('bh-mitra', idr(mitra));
-  setText('bh-cicil', idr(motor));
-  setText('bh-cad', idr(cad));
-  if(cad>0) el('row-cad').style.display='flex'; else el('row-cad').style.display='none';
-
-  // Reset pilihan — wajib pilih ulang
-  bhOwnerStatus = null;
-  bhIlhamStatus = null;
-  bhMotorStatus = null;
+  setText('bh-owner',idr(owner));setText('bh-mitra',idr(mitra));
+  setText('bh-cicil',idr(motor));setText('bh-cad',idr(cad));
+  if(cad>0)el('row-cad').style.display='flex';else el('row-cad').style.display='none';
+  // Reset pilihan
+  bhOwnerStatus=null;bhIlhamStatus=null;bhMotorStatus=null;
   ['btn-owner-ambil','btn-owner-belum','btn-ilham-tunai','btn-ilham-kasbon','btn-ilham-sebagian','btn-motor-bayar','btn-motor-belum'].forEach(id=>{
-    const b = el(id);
-    if(b) b.className = 'btn btn-sm';
+    const b=el(id);if(b)b.className='btn btn-sm';
   });
-  el('ilham-sebagian-input').style.display = 'none';
-  setText('bh-net', '-');
-  setText('bh-pot', '-');
-  setText('bh-sisa-kasbon', idr(kasbonAktif()));
-
+  el('ilham-sebagian-input').style.display='none';
+  setText('bh-net','-');setText('bh-pot','-');
+  setText('bh-sisa-kasbon',idr(kasbonAktif()));
   el('prev-bh').classList.add('show');
 }
 
 async function simpanClosing(){
   if(ROLE!=='owner'){toast('Hanya owner');return;}
-  const pribadi = +v('cl-pribadi')||0;
-  const bhLaba = +v('bh-input')||0;
-
-  if(bhLaba > 0){
-    if(bhLaba > ST.laba_u){toast('Melebihi laba tersedia: '+idr(ST.laba_u));return;}
+  const pribadi=+v('cl-pribadi')||0;
+  const bhLaba=+v('bh-input')||0;
+  if(bhLaba>0){
+    if(bhLaba>ST.laba_u){toast('Melebihi laba tersedia: '+idr(ST.laba_u));return;}
     if(!bhOwnerStatus){toast('⚠️ Pilih status fee owner dulu!');return;}
     if(!bhIlhamStatus){toast('⚠️ Pilih pembayaran fee Ilham dulu!');return;}
     if(!bhMotorStatus){toast('⚠️ Pilih status cicilan motor dulu!');return;}
   }
-
-  const lunas = ST.motor_lunas;
-  const owner = Math.floor(bhLaba*(lunas?0.51:0.55));
-  const mitra = Math.floor(bhLaba*(lunas?0.45:0.35));
-  const motor = bhLaba - owner - mitra - (lunas?Math.floor(bhLaba*0.04):0);
-  const cad = lunas ? bhLaba - owner - mitra - motor : 0;
-
-  // Hitung potongan kasbon
-  let pot = 0;
-  let tunaiIlham = 0;
-  if(bhIlhamStatus==='kasbon'){
-    pot = Math.min(kasbonAktif(), mitra);
-  } else if(bhIlhamStatus==='sebagian'){
-    tunaiIlham = +v('ilham-tunai-nom')||0;
-    const sisa = mitra - tunaiIlham;
-    pot = Math.min(kasbonAktif(), sisa);
-  } else if(bhIlhamStatus==='tunai'){
-    tunaiIlham = mitra;
-  }
-
-  // Hitung perubahan kas
-  const kasOwner = bhOwnerStatus==='ambil' ? owner : 0;
-  const kasMotor = bhMotorStatus==='bayar' ? motor : 0;
-  const totalKasBerkurang = kasOwner + tunaiIlham + kasMotor;
-
-  // Konfirmasi
-  const ok = confirm(
-    'KONFIRMASI CLOSING\n\n' +
-    'Fee Owner: ' + idr(owner) + ' - ' + (bhOwnerStatus==='ambil'?'Sudah diambil':'Belum diambil') + '\n' +
-    'Fee Ilham: ' + idr(mitra) + ' - ' + (bhIlhamStatus==='tunai'?'Bayar tunai':(bhIlhamStatus==='kasbon'?'Potong kasbon':'Sebagian')) + '\n' +
-    'Cicilan Motor: ' + idr(motor) + ' - ' + (bhMotorStatus==='bayar'?'Sudah dibayar':'Belum dibayar') + '\n\n' +
-    'Kas berkurang: ' + idr(totalKasBerkurang) + '\n' +
-    'Kas akhir: ' + idr(ST.kas - totalKasBerkurang) + '\n' +
-    'Sisa kasbon: ' + idr(Math.max(0, kasbonAktif()-pot)) + '\n\n' +
+  const lunas=ST.motor_lunas;
+  const owner=Math.floor(bhLaba*(lunas?0.51:0.55));
+  const mitra=Math.floor(bhLaba*(lunas?0.45:0.35));
+  const motor=bhLaba-owner-mitra-(lunas?Math.floor(bhLaba*0.04):0);
+  const cad=lunas?bhLaba-owner-mitra-motor:0;
+  let pot=0,tunaiIlham=0;
+  if(bhIlhamStatus==='kasbon'){pot=Math.min(kasbonAktif(),mitra);}
+  else if(bhIlhamStatus==='sebagian'){
+    tunaiIlham=+v('ilham-tunai-nom')||0;
+    pot=Math.min(kasbonAktif(),Math.max(0,mitra-tunaiIlham));
+  } else if(bhIlhamStatus==='tunai'){tunaiIlham=mitra;}
+  const kasOwner=bhOwnerStatus==='ambil'?owner:0;
+  const kasMotor=bhMotorStatus==='bayar'?motor:0;
+  const totalKasBerkurang=kasOwner+tunaiIlham+kasMotor;
+  const ok=confirm(
+    'KONFIRMASI CLOSING\n\n'+
+    'Fee Owner: '+idr(owner)+' - '+(bhOwnerStatus==='ambil'?'Sudah diambil (kas -'+idr(owner)+')':'Belum diambil')+'\n'+
+    'Fee Ilham: '+idr(mitra)+' - '+(bhIlhamStatus==='tunai'?'Bayar tunai':bhIlhamStatus==='kasbon'?'Potong kasbon -'+idr(pot):'Tunai '+idr(tunaiIlham)+' + Potong kasbon -'+idr(pot))+'\n'+
+    'Cicilan Motor: '+idr(motor)+' - '+(bhMotorStatus==='bayar'?'Sudah dibayar':'Belum dibayar')+'\n\n'+
+    'Kas berkurang: '+idr(totalKasBerkurang)+'\n'+
+    'Kas akhir: '+idr(ST.kas-totalKasBerkurang)+'\n'+
+    'Sisa kasbon: '+idr(Math.max(0,kasbonAktif()-pot))+'\n\n'+
     'Lanjut simpan?'
   );
-    if(!ok) return;
-
-  const patch = {};
-
-  // Update kas
-  patch.kas = ST.kas - totalKasBerkurang;
-  if(pribadi > 0) patch.kas = (patch.kas||ST.kas) + pribadi;
-
-  // Update motor
+  if(!ok)return;
+  const patch={};
+  patch.kas=ST.kas-totalKasBerkurang;
+  if(pribadi>0)patch.kas+=pribadi;
   if(bhMotorStatus==='bayar'){
-    patch.motor_bayar = Math.min(MOTOR_NILAI, ST.motor_bayar + motor);
-    patch.motor_lunas = patch.motor_bayar >= MOTOR_NILAI;
+    patch.motor_bayar=Math.min(MOTOR_NILAI,ST.motor_bayar+motor);
+    patch.motor_lunas=patch.motor_bayar>=MOTOR_NILAI;
   }
-
-  // Update kasbon — potong sebagian
-  if(pot > 0){
-    let s = pot;
+  if(pot>0){
+    let s=pot;
     for(const k of KASBON){
-      if(!k.lunas && s > 0){
-        if(s >= k.nom){
-          await sb('PATCH','kasbon',{lunas:true},'?id=eq.'+k.id);
-          k.lunas = true;
-          s -= k.nom;
-        } else {
-          await sb('PATCH','kasbon',{nom:k.nom-s},'?id=eq.'+k.id);
-          k.nom = k.nom - s;
-          s = 0;
-        }
+      if(!k.lunas&&s>0){
+        if(s>=k.nom){await sb('PATCH','kasbon',{lunas:true},'?id=eq.'+k.id);k.lunas=true;s-=k.nom;}
+        else{await sb('PATCH','kasbon',{nom:k.nom-s},'?id=eq.'+k.id);k.nom=k.nom-s;s=0;}
       }
     }
   }
-
-  patch.dana_cad = ST.dana_cad + cad;
-  patch.laba_u = Math.max(0, ST.laba_u - bhLaba);
-  patch.laba_akum = ST.laba_akum + bhLaba;
-  patch.week_omzet = 0;
-  patch.week_laba = 0;
-
-  const bhData = {
-    bh_laba:bhLaba, bh_owner:owner, bh_mitra:mitra, bh_motor:motor,
-    bh_cad:cad, bh_pot:pot, bh_skema:lunas?'51/45/4':'55/35/10',
-    bh_owner_status:bhOwnerStatus, bh_ilham_status:bhIlhamStatus,
-    bh_motor_status:bhMotorStatus
+  patch.dana_cad=ST.dana_cad+cad;
+  patch.laba_u=Math.max(0,ST.laba_u-bhLaba);
+  patch.laba_akum=ST.laba_akum+bhLaba;
+  patch.week_omzet=0;patch.week_laba=0;
+  const bhData={
+    bh_laba:bhLaba,bh_owner:owner,bh_mitra:mitra,bh_motor:motor,bh_cad:cad,bh_pot:pot,
+    bh_skema:lunas?'51/45/4':'55/35/10',
+    bh_owner_status:bhOwnerStatus,bh_ilham_status:bhIlhamStatus,bh_motor_status:bhMotorStatus
   };
-
-  const closingRow = {
-    omzet_week:ST.week_omzet, laba_week:ST.week_laba,
-    pribadi, tgl:today(), ...bhData
-  };
-
-  const res = await sb('POST','closing',closingRow);
-  if(res&&res.length) CLOSING.unshift(res[0]); else CLOSING.unshift(closingRow);
-
+  const closingRow={omzet_week:ST.week_omzet,laba_week:ST.week_laba,pribadi,tgl:today(),...bhData};
+  const res=await sb('POST','closing',closingRow);
+  if(res&&res.length)CLOSING.unshift(res[0]);else CLOSING.unshift(closingRow);
   await saveState(patch);
-  await addJurnal('closing',
-    `Closing: omzet ${idr(ST.week_omzet,true)} | laba ${idr(bhLaba,true)} | kas -${idr(totalKasBerkurang,true)}`
-  );
-
-  setv('cl-pribadi','');
-  setv('bh-input','');
+  await addJurnal('closing',`Closing: laba ${idr(bhLaba,true)} | kas -${idr(totalKasBerkurang,true)}`);
+  setv('cl-pribadi','');setv('bh-input','');
   el('prev-bh').classList.remove('show');
-  toast('✅ Closing tersimpan!');
-  renderAll();
+  toast('✅ Closing tersimpan!');renderAll();
 }
 
 function renderMotor(){
-  const sisa = Math.max(0, MOTOR_NILAI - ST.motor_bayar);
-  const pct = Math.min(100, Math.round(ST.motor_bayar/MOTOR_NILAI*100));
-  setText('motor-bayar', idr(ST.motor_bayar));
-  setText('motor-sisa', idr(sisa));
-  el('motor-bar').style.width = pct+'%';
-  el('motor-badge').innerHTML = ST.motor_lunas
+  const sisa=Math.max(0,MOTOR_NILAI-ST.motor_bayar);
+  const pct=Math.min(100,Math.round(ST.motor_bayar/MOTOR_NILAI*100));
+  setText('motor-bayar',idr(ST.motor_bayar));setText('motor-sisa',idr(sisa));
+  el('motor-bar').style.width=pct+'%';
+  el('motor-badge').innerHTML=ST.motor_lunas
     ?'<span class="badge badge-green">✅ Lunas — skema 51/45/4%</span>'
     :`<span class="badge badge-amber">Belum lunas (${pct}%) — skema 55/35/10%</span>`;
 }
 
 function renderListClosing(){
-  const e = el('list-closing');
+  const e=el('list-closing');
   if(!CLOSING.length){e.innerHTML='<div class="empty">Belum ada closing</div>';return;}
-  e.innerHTML = CLOSING.slice(0,6).map(c=>`
+  e.innerHTML=CLOSING.slice(0,6).map(c=>`
     <div class="card" style="margin-bottom:8px">
       <div class="row"><span class="row-label">Tanggal</span><span>${c.tgl}</span></div>
       <div class="row"><span class="row-label">Omzet minggu</span><span class="tg">${idr(c.omzet_week)}</span></div>
       <div class="row"><span class="row-label">Laba minggu</span><span class="tg">${idr(c.laba_week)}</span></div>
       ${c.bh_laba?`
       <div style="border-top:1px solid var(--border);margin:8px 0"></div>
-      <div class="row"><span class="row-label tb">Bagi Hasil — ${c.bh_skema}</span><span class="badge badge-green">${idr(c.bh_laba)}</span></div>
+      <div class="row"><span class="row-label tb">Bagi Hasil ${c.bh_skema}</span><span class="badge badge-green">${idr(c.bh_laba)}</span></div>
       <div class="row"><span class="row-label">👑 Fee Owner</span><span class="tg">${idr(c.bh_owner)} — ${c.bh_owner_status==='ambil'?'Sudah diambil':'Belum diambil'}</span></div>
-      <div class="row"><span class="row-label">🤝 Fee Ilham (kotor)</span><span>${idr(c.bh_mitra)}</span></div>
+      <div class="row"><span class="row-label">🤝 Fee Ilham kotor</span><span>${idr(c.bh_mitra)}</span></div>
       <div class="row"><span class="row-label">✂️ Potong kasbon</span><span class="tr">${c.bh_pot>0?'-'+idr(c.bh_pot):'-'}</span></div>
-      <div class="row"><span class="row-label">🤝 Ilham terima bersih</span><span class="tg">${idr(c.bh_mitra-c.bh_pot)}</span></div>
+      <div class="row"><span class="row-label">🤝 Ilham bersih</span><span class="tg">${idr(c.bh_mitra-c.bh_pot)}</span></div>
       <div class="row"><span class="row-label">🏍 Cicilan motor</span><span>${idr(c.bh_motor)} — ${c.bh_motor_status==='bayar'?'Sudah dibayar':'Belum dibayar'}</span></div>
       ${c.bh_cad?`<div class="row"><span class="row-label">💰 Dana cadangan</span><span class="tg">${idr(c.bh_cad)}</span></div>`:''}
       `:''}
     </div>`).join('');
 }
 
-// ─── INPUT MANUAL OMZET & LABA ───────────────────────────
+// ─── INPUT MANUAL OMZET & LABA ────────────────────────────
 async function inputManualOmzet(){
   if(ROLE!=='owner'){toast('Hanya owner');return;}
-  const omzet=+v('manual-omzet');
-  const laba=+v('manual-laba');
+  const omzet=+v('manual-omzet'),laba=+v('manual-laba');
   if(!omzet||!laba){toast('Isi omzet dan laba');return;}
-  if(!confirm(`Input manual:\nOmzet: ${idr(omzet)}\nLaba: ${idr(laba)}\n\nLanjut?`))return;
-  
+  if(!confirm('Input manual:\nOmzet: '+idr(omzet)+'\nLaba: '+idr(laba)+'\n\nLanjut?'))return;
   await saveState({
-    total_omzet: ST.total_omzet+omzet,
-    laba_akum: ST.laba_akum+laba,
-    laba_u: ST.laba_u+laba,
-    week_omzet: ST.week_omzet+omzet,
-    week_laba: ST.week_laba+laba
+    total_omzet:ST.total_omzet+omzet,laba_akum:ST.laba_akum+laba,
+    laba_u:ST.laba_u+laba,week_omzet:ST.week_omzet+omzet,week_laba:ST.week_laba+laba
   });
-  
-  await addJurnal('closing', `Input manual: omzet ${idr(omzet,true)} | laba ${idr(laba,true)}`);
-  setv('manual-omzet','');
-  setv('manual-laba','');
-  toast('✅ Omzet & laba berhasil diinput!');
+  await addJurnal('closing',`Input manual: omzet ${idr(omzet,true)} | laba ${idr(laba,true)}`);
+  setv('manual-omzet','');setv('manual-laba','');
+  toast('✅ Omzet & laba berhasil diinput!');renderAll();
+}
+
+// ─── KAS & BANK ───────────────────────────────────────────
+async function beliKacang(){
+  if(ROLE!=='owner'){toast('Hanya owner');return;}
+  const kal=+v('sup-kal'),hkal=+v('sup-hkal')||270000,
+    bayar=+v('sup-bayar')||0,dari=v('sup-dari'),tgl=v('sup-tgl');
+  if(!kal){toast('Isi jumlah kaleng');return;}
+  const total=kal*hkal,hutangBaru=total-bayar;
+  if(bayar>0){
+    if(dari==='kas'&&ST.kas<bayar){toast('Kas tidak cukup');return;}
+    if(dari==='bank'&&ST.bank<bayar){toast('Saldo bank tidak cukup');return;}
+  }
+  const patch={stok_kal:ST.stok_kal+kal,hutang_sup:ST.hutang_sup+hutangBaru};
+  if(bayar>0){if(dari==='kas')patch.kas=ST.kas-bayar;else patch.bank=ST.bank-bayar;}
+  await saveState(patch);
+  await addJurnal('kas',`Beli ${kal} kaleng | total ${idr(total,true)} | hutang baru ${idr(hutangBaru,true)}`,tgl);
+  setv('sup-kal','');setv('sup-bayar','');
+  toast(`✅ ${kal} kaleng dicatat!`);renderAll();
+}
+
+async function bayarSupplier(){
+  if(ROLE!=='owner'){toast('Hanya owner');return;}
+  const nom=+v('hs-nom'),dari=v('hs-dari'),tgl=v('hs-tgl');
+  if(!nom){toast('Isi nominal');return;}
+  if(dari==='kas'&&ST.kas<nom){toast('Kas tidak cukup');return;}
+  if(dari==='bank'&&ST.bank<nom){toast('Saldo bank tidak cukup');return;}
+  const patch={hutang_sup:Math.max(0,ST.hutang_sup-nom)};
+  if(dari==='kas')patch.kas=ST.kas-nom;else patch.bank=ST.bank-nom;
+  await saveState(patch);
+  await addJurnal('kas',`Bayar supplier ${idr(nom,true)} dari ${dari==='kas'?'Kas':'Bank'}`,tgl);
+  setv('hs-nom','');
+  toast('✅ Pembayaran supplier dicatat!');renderAll();
+}
+
+async function simpanOps(){
+  if(ROLE!=='owner'){toast('Hanya owner');return;}
+  const nom=+v('op-nom'),dari=v('op-dari'),ket=v('op-ket'),tgl=v('op-tgl'),jenis=v('op-jenis');
+  if(!nom){toast('Isi nominal');return;}
+  if(dari==='cad'&&ST.dana_cad<nom){toast('Dana cadangan tidak cukup');return;}
+  if(dari==='kas'&&ST.kas<nom){toast('Kas tidak cukup');return;}
+  if(dari==='bank'&&ST.bank<nom){toast('Saldo bank tidak cukup');return;}
+  const patch={};
+  if(dari==='cad')patch.dana_cad=ST.dana_cad-nom;
+  else if(dari==='kas')patch.kas=ST.kas-nom;
+  else patch.bank=ST.bank-nom;
+  await saveState(patch);
+  await addJurnal('kas',`${jenis}: ${ket||'-'} | ${idr(nom,true)} dari ${dari}`,tgl);
+  setv('op-nom','');setv('op-ket','');
+  toast('✅ Pengeluaran dicatat!');renderAll();
+}
+
+// ─── KASBON ───────────────────────────────────────────────
+async function simpanKasbon(){
+  const nom=+v('kb-nom'),ket=v('kb-ket'),tgl=v('kb-tgl');
+  if(!nom){toast('Isi nominal');return;}
+  const row={nom,ket:ket||'Kasbon',tgl,lunas:false};
+  const res=await sb('POST','kasbon',row);
+  if(res&&res.length)KASBON.unshift(res[0]);else KASBON.unshift(row);
+  await addJurnal('kas',`Kasbon Ilham: ${ket||'-'} ${idr(nom,true)}`,tgl);
+  setv('kb-nom','');setv('kb-ket','');
+  closeModal('modal-kasbon');
+  toast('✅ Kasbon dicatat');renderAll();
+}
+
+async function lunasKasbon(id){
+  await sb('PATCH','kasbon',{lunas:true},'?id=eq.'+id);
+  const k=KASBON.find(k=>k.id===id);if(k)k.lunas=true;
+  toast('✅ Kasbon dilunasi');renderAll();
+}
+
+async function hapusKasbon(id){
+  if(!confirm('Hapus kasbon ini?'))return;
+  await sb('DELETE','kasbon',null,'?id=eq.'+id);
+  KASBON=KASBON.filter(k=>k.id!==id);
+  toast('✅ Kasbon dihapus');renderAll();
+}
+
+function renderKasbonList(){
+  setText('kb-kasbon-tot',idr(kasbonAktif()));
+  setText('cl-kasbon',idr(kasbonAktif()));
+  const e=el('list-kasbon');
+  if(!KASBON.length){e.innerHTML='<div class="empty">Belum ada kasbon</div>';return;}
+  e.innerHTML=KASBON.map(k=>`
+    <div class="kb-item">
+      <div>
+        <div style="font-weight:500;font-size:13px">${k.ket}</div>
+        <div style="font-size:11px;color:var(--text3)">${k.tgl}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end">
+        <span class="badge ${k.lunas?'badge-green':'badge-red'}">${k.lunas?'Lunas':idr(k.nom,true)}</span>
+        ${!k.lunas?`<button class="btn btn-sm" onclick="lunasKasbon('${k.id}')">✅</button>`:''}
+        ${ROLE==='owner'?`<button class="btn btn-danger btn-sm" onclick="hapusKasbon('${k.id}')">🗑</button>`:''}
+      </div>
+    </div>`).join('');
+}
+
+// ─── JURNAL ───────────────────────────────────────────────
+function renderJurnal(){
+  const q=(v('j-search')||'').toLowerCase();
+  const f=v('j-filter');
+  const list=JURNAL.filter(j=>(!q||(j.keterangan||'').toLowerCase().includes(q))&&(!f||j.tipe===f));
+  const e=el('list-jurnal');
+  if(!list.length){e.innerHTML='<div class="empty">Tidak ada transaksi</div>';return;}
+  const tc={produksi:'badge-blue',visit:'badge-green',closing:'badge-green',kas:'badge-amber',outlet:'badge-gray',setup:'badge-gray'};
+  e.innerHTML=list.slice(0,80).map(j=>`
+    <div class="j-item">
+      <div style="flex:1;min-width:0">
+        <div class="j-title">${j.keterangan||'-'}</div>
+        <div class="j-meta">${j.tgl}</div>
+      </div>
+      <span class="badge ${tc[j.tipe]||'badge-gray'}" style="flex-shrink:0;margin-left:6px">${j.tipe}</span>
+    </div>`).join('');
+}
+
+// ─── RESET ────────────────────────────────────────────────
+async function resetData(){
+  if(ROLE!=='owner'){toast('Hanya owner');return;}
+  if(!confirm('⚠️ HAPUS SEMUA DATA?\n\nLanjut?'))return;
+  if(!confirm('❗ YAKIN BANGET?\nTidak bisa dikembalikan.'))return;
+  toast('Menghapus data...',5000);
+  try{
+    await sb('DELETE','visits',null,'?id=neq.00000000-0000-0000-0000-000000000000');
+    await sb('DELETE','kasbon',null,'?id=neq.00000000-0000-0000-0000-000000000000');
+    await sb('DELETE','closing',null,'?id=neq.00000000-0000-0000-0000-000000000000');
+    await sb('DELETE','jurnal',null,'?id=neq.00000000-0000-0000-0000-000000000000');
+    await sb('DELETE','produksi',null,'?id=neq.00000000-0000-0000-0000-000000000000');
+    await sb('DELETE','outlets',null,'?id=neq.00000000-0000-0000-0000-000000000000');
+    await saveState({kas:0,bank:0,stok_kal:0,gudang:0,piutang:0,hutang_sup:4320000,dana_cad:0,modal:15000000,laba_akum:0,laba_u:0,motor_bayar:0,motor_lunas:false,total_omzet:0,total_hpp:0,week_omzet:0,week_laba:0,setup:false});
+    OUTLETS=[];PRODUKSI=[];VISITS=[];KASBON=[];CLOSING=[];JURNAL=[];
+    toast('✅ Semua data berhasil dihapus!');renderAll();
+  }catch(e){toast('Gagal: '+e.message);console.error(e);}
+}
+
+// ─── IMPORT OUTLET ────────────────────────────────────────
+function downloadTemplate(){
+  const csv='NAMA,ALAMAT,STOK_AWAL,TANGGAL_PENGISIAN_TERAKHIR\nWarung Bu Sari,Jl. Merdeka No.1,25,2026-05-24\nWarkop Pak Joko,Jl. Sudirman No.5,50,2026-05-20';
+  const blob=new Blob([csv],{type:'text/csv'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);a.download='template_outlet_KBB.csv';a.click();
+}
+
+async function importOutlet(){
+  const file=el('import-file').files[0];
+  if(!file){toast('Pilih file dulu');return;}
+  const text=await file.text();
+  const lines=text.trim().split('\n');
+  const rows=lines.slice(1).filter(l=>l.trim());
+  if(!rows.length){toast('File kosong atau format salah');return;}
+  const preview=[];
+  for(const row of rows){
+    const cols=row.split(/[,;]/).map(c=>c.trim().replace(/^"|"$/g,''));
+    if(!cols[0])continue;
+    preview.push({nama:cols[0]||'',alamat:cols[1]||'',stok:parseInt(cols[2])||0,last_visit:cols[3]||null});
+  }
+  if(!preview.length){toast('Tidak ada data valid');return;}
+  el('import-preview-list').innerHTML=preview.map(o=>`
+    <div class="row"><span style="font-size:12px">${o.nama} — ${o.alamat||'-'}</span><span class="badge badge-gray">${o.stok} bungkus</span></div>`).join('');
+  el('import-preview').style.display='block';
+  el('import-preview').dataset.rows=JSON.stringify(preview);
+  setText('import-count',preview.length+' outlet siap diimport');
+}
+
+async function konfirmasiImport(){
+  const rows=JSON.parse(el('import-preview').dataset.rows||'[]');
+  if(!rows.length)return;
+  let sukses=0,gagal=0;
+  toast('Mengimport '+rows.length+' outlet...',10000);
+  for(const o of rows){
+    try{
+      const row={nama:o.nama,alamat:o.alamat,stok:o.stok||0,last_visit:o.last_visit||null,total_laku:0,total_omzet:0,tgl_mulai:today()};
+      const res=await sb('POST','outlets',row);
+      if(res&&res.length)OUTLETS.push(res[0]);else OUTLETS.push(row);
+      sukses++;
+    }catch(e){gagal++;console.error(e);}
+  }
+  el('import-preview').style.display='none';el('import-file').value='';
+  closeModal('modal-import');
+  await addJurnal('outlet',`Import ${sukses} outlet dari Excel`);
+  toast(`✅ ${sukses} outlet berhasil diimport${gagal>0?' | '+gagal+' gagal':''}`);
   renderAll();
 }
 
@@ -781,9 +854,6 @@ async function init(){
     USER=JSON.parse(saved);ROLE=USER.role;
     showApp();setupNav();setDates();
     await loadAll();renderAll();
-  }else{
-    showLogin();
-  }
+  }else{showLogin();}
 }
-
 init();
