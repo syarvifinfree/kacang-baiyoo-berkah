@@ -252,6 +252,7 @@
     </div>
     <div class="card">
       <div class="row"><span class="row-label">Hutang supplier</span><span class="tr" id="n-hsup">-</span></div>
+      <div class="row" id="row-utang-upah" style="display:none"><span class="row-label" style="color:var(--amber)">Utang upah packing</span><span class="tr" id="n-utang-upah">Rp0</span></div>
       <div class="row" id="row-utang-owner" style="display:none"><span class="row-label" style="color:var(--amber)">Utang KBB ke Owner</span><span class="tr" id="n-utang-owner">Rp0</span></div>
       <div class="row"><span class="row-label">Dana cadangan</span><span class="tg" id="n-cad">-</span></div>
       <div class="row"><span class="row-label">Modal owner</span><span class="ti" id="n-modal">-</span></div>
@@ -445,6 +446,7 @@
             <div class="row"><span class="row-label">Potong kasbon</span><span id="ilham-kasbon-pot">-</span></div>
           </div>
         </div>
+        <div class="row"><span class="row-label">Potong kasbon</span><span class="tr" id="bh-pot">-</span></div>
         <div class="row"><span class="row-label">Ilham terima bersih</span><span class="tg tb" id="bh-net">-</span></div>
         <div class="row"><span class="row-label">Sisa kasbon Ilham</span><span class="tr" id="bh-sisa-kasbon">-</span></div>
         <div class="divider"></div>
@@ -522,11 +524,15 @@
     <div class="card">
       <div class="fg" style="margin-bottom:10px">
         <div><label>Jenis</label>
-          <select id="op-jenis"><option value="Servis motor">Servis motor</option><option value="BBM">BBM / transport</option><option value="Lain-lain">Lain-lain</option></select>
+          <select id="op-jenis">
+            <option value="Plastik">Plastik</option>
+            <option value="Upah packing">Upah packing</option>
+            <option value="Dana pengembangan">Dana pengembangan usaha</option>
+            <option value="Servis motor">Servis motor</option>
+            <option value="Lain-lain">Lain-lain</option>
+          </select>
         </div>
-        <div><label>Dari akun</label>
-          <select id="op-dari"><option value="cad">Dana cadangan</option><option value="kas">Kas KBB</option><option value="bank">Bank Mandiri</option></select>
-        </div>
+        <input type="hidden" id="op-dari" value="kas">
         <div><label>Nominal (Rp)</label><input type="number" id="op-nom" placeholder="0"></div>
         <div><label>Tanggal</label><input type="date" id="op-tgl"></div>
       </div>
