@@ -7,7 +7,7 @@ const MOTOR_NILAI = 6000000;
 let ROLE = null, USER = null;
 let ST = {
   kas:0,bank:0,stok_kal:0,gudang:0,piutang:0,hutang_sup:4320000,
-  dana_cad:0,modal:18000000,laba_akum:0,laba_u:0,
+  dana_cad:0,modal:15000000,laba_akum:0,laba_u:0,
   motor_bayar:0,motor_lunas:false,
   total_omzet:0,total_hpp:0,week_omzet:0,week_laba:0,setup:false,
   utang_owner:0,utang_upah:0
@@ -622,9 +622,9 @@ async function hapusVisit(id,laku,omzet,laba,hpp,bayarKe,bayarNom,refill,sisa,ru
 }
 
 function renderListVisit(){
-  // Update riwayat filter dropdowns
   const rvArea=el('rv-area');
   const rvOutlet=el('rv-outlet');
+  const rvSearch=(v('rv-search')||'').toLowerCase();
   if(rvArea&&rvArea.options.length<=1){
     const areas=[...new Set(OUTLETS.map(o=>o.alamat||'').filter(a=>a))].sort();
     rvArea.innerHTML='<option value="">Semua area</option>'+
@@ -642,6 +642,7 @@ function renderListVisit(){
     return o&&o.alamat===filterArea;
   });
   if(filterOutlet) filteredVisits=filteredVisits.filter(vi=>vi.outlet_id===filterOutlet);
+  if(rvSearch) filteredVisits=filteredVisits.filter(vi=>(vi.outlet_nama||'').toLowerCase().includes(rvSearch));
   const e=el('list-visit');
   if(!filteredVisits.length){e.innerHTML='<div class="empty">Belum ada kunjungan</div>';return;}
   e.innerHTML=filteredVisits.slice(0,30).map(v=>`
@@ -871,11 +872,23 @@ async function beliKacang(){
   if(!kal){toast('Isi jumlah kaleng');return;}
   const total=kal*hkal,hutangBaru=total-bayar;
   if(bayar>0){
-    if(dari==='kas'&&ST.kas<bayar){toast('Kas tidak cukup');return;}
+    if(dari==='kas'&&ST.kas<bayar){
+      const kurang=bayar-ST.kas;
+      const ok=confirm('Kas tidak cukup!\nKas: '+idr(ST.kas)+'\nKurang: '+idr(kurang)+'\n\nTambal dari uang pribadi?\n(KBB catat utang ke owner: '+idr(kurang)+')');
+      if(!ok)return;
+    }
     if(dari==='bank'&&ST.bank<bayar){toast('Saldo bank tidak cukup');return;}
   }
   const patch={stok_kal:ST.stok_kal+kal,hutang_sup:ST.hutang_sup+hutangBaru};
-  if(bayar>0){if(dari==='kas')patch.kas=ST.kas-bayar;else patch.bank=ST.bank-bayar;}
+  if(bayar>0){
+    if(dari==='kas'){
+      const kurang=Math.max(0,bayar-ST.kas);
+      patch.kas=Math.max(0,ST.kas-bayar);
+      if(kurang>0)patch.utang_owner=(ST.utang_owner||0)+kurang;
+    } else {
+      patch.bank=ST.bank-bayar;
+    }
+  }
   await saveState(patch);
   await addJurnal('kas',`Beli ${kal} kaleng | total ${idr(total,true)} | hutang baru ${idr(hutangBaru,true)}`,tgl);
   setv('sup-kal','');setv('sup-bayar','');
@@ -964,7 +977,15 @@ async function ambilPiutangOwner(){
 async function simpanKasbon(){
   const nom=+v('kb-nom'),ket=v('kb-ket'),tgl=v('kb-tgl');
   if(!nom){toast('Isi nominal');return;}
-  // Tambah ke kasbon aktif yang ada, atau buat baru kalau belum ada
+  if(ST.kas<nom){
+    const ok=confirm('Kas tidak cukup!\nKas: '+idr(ST.kas)+'\nKurang: '+idr(nom-ST.kas)+'\n\nTambal dari uang pribadi lo?\n(KBB catat utang ke owner)');
+    if(!ok)return;
+    const kurang=nom-ST.kas;
+    await saveState({kas:0,utang_owner:(ST.utang_owner||0)+kurang});
+  } else {
+    await saveState({kas:ST.kas-nom});
+  }
+  // Tambah ke kasbon aktif
   const aktif=KASBON.find(k=>!k.lunas);
   if(aktif){
     const newNom=aktif.nom+nom;
@@ -975,11 +996,10 @@ async function simpanKasbon(){
     const res=await sb('POST','kasbon',row);
     if(res&&res.length)KASBON.unshift(res[0]);else KASBON.unshift(row);
   }
-  // Catat riwayat di jurnal
-  await addJurnal('kas',`Kasbon Ilham: ${ket||'-'} ${idr(nom,true)}`,tgl);
+  await addJurnal('kas',`Kasbon Ilham: ${ket||'-'} ${idr(nom,true)} (kas -${idr(nom,true)})`,tgl);
   setv('kb-nom','');setv('kb-ket','');
   closeModal('modal-kasbon');
-  toast('✅ Kasbon +'+idr(nom,true)+' | Total: '+idr(kasbonAktif()+nom));
+  toast('✅ Kasbon +'+idr(nom,true)+' | Kas -'+idr(nom,true));
   renderAll();
 }
 
@@ -1046,7 +1066,7 @@ async function resetData(){
     await sb('DELETE','jurnal',null,'?id=neq.00000000-0000-0000-0000-000000000000');
     await sb('DELETE','produksi',null,'?id=neq.00000000-0000-0000-0000-000000000000');
     await sb('DELETE','outlets',null,'?id=neq.00000000-0000-0000-0000-000000000000');
-    await saveState({kas:0,bank:0,stok_kal:0,gudang:0,piutang:0,hutang_sup:4320000,dana_cad:0,modal:18000000,laba_akum:0,laba_u:0,motor_bayar:0,motor_lunas:false,total_omzet:0,total_hpp:0,week_omzet:0,week_laba:0,setup:false});
+    await saveState({kas:0,bank:0,stok_kal:0,gudang:0,piutang:0,hutang_sup:4320000,dana_cad:0,modal:15000000,laba_akum:0,laba_u:0,motor_bayar:0,motor_lunas:false,total_omzet:0,total_hpp:0,week_omzet:0,week_laba:0,setup:false});
     OUTLETS=[];PRODUKSI=[];VISITS=[];KASBON=[];CLOSING=[];JURNAL=[];
     toast('✅ Semua data berhasil dihapus!');renderAll();
   }catch(e){toast('Gagal: '+e.message);console.error(e);}
