@@ -62,11 +62,14 @@ function gp(id,btn){
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
   el('page-'+id).classList.add('active');
   if(btn)btn.classList.add('active');
-  // Scroll to top
-  const appScreen=el('app-screen');
-  if(appScreen)appScreen.scrollTop=0;
-  window.scrollTo(0,0);
   renderAll();
+  setTimeout(()=>{
+    window.scrollTo(0,0);
+    document.documentElement.scrollTop=0;
+    document.body.scrollTop=0;
+    const app=document.querySelector('.app');
+    if(app)app.scrollTop=0;
+  },0);
 }
 function openModal(id){el(id).classList.add('open');}
 function closeModal(id){el(id).classList.remove('open');}
