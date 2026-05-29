@@ -160,10 +160,15 @@ async function loadAll(){
 // ─── RENDER ALL ───────────────────────────────────────────
 function renderAll(){
   if(!USER)return;
-  renderNeraca();renderMotor();renderKasbonList();
-  renderOutlets();renderAlarm();renderVisitSelect();
-  renderListProd();renderListVisit();renderListClosing();renderJurnal();
-  updateClosingSum();
+  const activePage=document.querySelector('.page.active')?.id||'';
+  renderNeraca();renderMotor();renderKasbonList();updateClosingSum();
+  if(activePage==='page-outlet')renderOutlets();
+  if(activePage==='page-visit'){renderAlarm();renderVisitSelect();renderListVisit();}
+  if(activePage==='page-produksi')renderListProd();
+  if(activePage==='page-closing')renderListClosing();
+  if(activePage==='page-jurnal')renderJurnal();
+  // Always render these for nav indicators
+  if(activePage==='page-neraca'){renderOutlets();renderAlarm();}
   setText('top-tgl',new Date().toLocaleDateString('id-ID',{weekday:'short',day:'numeric',month:'short',year:'numeric'}));
   setText('top-user',USER.nama);
   const needVisit=OUTLETS.filter(o=>daysSince(o.last_visit)>=7).length;
