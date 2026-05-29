@@ -252,6 +252,7 @@
     </div>
     <div class="card">
       <div class="row"><span class="row-label">Hutang supplier</span><span class="tr" id="n-hsup">-</span></div>
+      <div class="row" id="row-utang-owner" style="display:none"><span class="row-label" style="color:var(--amber)">Utang KBB ke Owner</span><span class="tr" id="n-utang-owner">Rp0</span></div>
       <div class="row"><span class="row-label">Dana cadangan</span><span class="tg" id="n-cad">-</span></div>
       <div class="row"><span class="row-label">Modal owner</span><span class="ti" id="n-modal">-</span></div>
       <div class="divider"></div>
@@ -507,6 +508,14 @@
       </div>
       <label>Tanggal</label><input type="date" id="hs-tgl">
       <button class="btn btn-primary" onclick="bayarSupplier()">💳 Bayar Supplier</button>
+    </div>
+
+    <div class="sec" id="sec-piutang-owner" style="display:none">Ambil Piutang Owner</div>
+    <div class="card" id="card-piutang-owner" style="display:none">
+      <div class="row"><span class="row-label">Utang KBB ke lo</span><span class="tr tb" id="kb-utang-owner">Rp0</span></div>
+      <label style="margin-top:8px">Nominal yang mau diambil (Rp)</label>
+      <input type="number" id="po-nom" placeholder="0">
+      <button class="btn btn-primary" style="margin-top:8px" onclick="ambilPiutangOwner()">💰 Ambil Piutang</button>
     </div>
 
     <div class="sec">Pengeluaran operasional</div>
