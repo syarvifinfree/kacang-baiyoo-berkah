@@ -54,7 +54,7 @@ function toast(msg,dur=2500){
 }
 function kasbonAktif(){return KASBON.filter(k=>!k.lunas).reduce((s,k)=>s+(k.nom||0),0);}
 function lastHPP(){return PRODUKSI.length?PRODUKSI[0].hpp:1150;}
-function outletStokTotal(){return OUTLETS.reduce((s,o)=>s+(o.stok||0),0);}
+function kedaiStokTotal(){return OUTLETS.reduce((s,o)=>s+(o.stok||0),0);}
 
 function gp(id,btn){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
@@ -175,15 +175,20 @@ function renderNeraca(){
   setText('n-laba',idr(ST.laba_akum,true));setText('n-labau',idr(ST.laba_u,true));
   setText('kb-kas',idr(ST.kas,true));setText('kb-bank',idr(ST.bank,true));
   setText('kb-hsup',idr(ST.hutang_sup,true));
+  // Total utang ringkas
+  const totalUtang=(ST.hutang_sup||0)+(ST.utang_upah||0)+(ST.utang_owner||0);
+  const ntu=el('n-total-utang');
+  if(ntu)ntu.textContent=idr(totalUtang,true);
+
   const needVisit=OUTLETS.filter(o=>daysSince(o.last_visit)>=7).length;
   function setk(id,ok,yes,no){
     const e=el(id);if(!e)return;
     e.textContent=ok?yes:no;e.className='badge '+(ok?'badge-green':'badge-red');
   }
-  setk('k1',ST.stok_kal>=0&&ST.gudang>=0,'Aman','Cek stok');
-  setk('k2',ST.piutang<2000000,'Aman','Numpuk');
-  setk('k3',needVisit===0,'Semua oke',needVisit+' outlet');
-  setk('k4',ST.laba_u>=0,'Ada laba','Merugi');
+  setk('k1',ST.stok_kal>=0&&ST.gudang>=0,'Aman','Stok aman');
+  setk('k2',ST.piutang<2000000,'Aman','Bon numpuk');
+  setk('k3',needVisit===0,'Kedai oke',needVisit+' kedai');
+  setk('k4',ST.laba_u>=0,'Untung','Rugi');
   if(ST.setup){const ss=el('setup-section');if(ss)ss.style.display='none';}
   // Utang upah
   const utangUpah=ST.utang_upah||0;
@@ -209,6 +214,11 @@ function renderNeraca(){
 function updateClosingSum(){
   setText('cl-omzet-week',idr(ST.week_omzet));setText('cl-laba-week',idr(ST.week_laba));
   setText('cl-labau',idr(ST.laba_u));setText('cl-kasbon',idr(kasbonAktif()));
+  // Sembunyikan form bagi hasil kalau laba_u = 0
+  const bhSection=el('bh-section');
+  if(bhSection){
+    bhSection.style.display=ST.laba_u>0?'block':'none';
+  }
 }
 
 // ─── SETUP SALDO AWAL ─────────────────────────────────────
@@ -230,11 +240,12 @@ function prevProd(){
     bungkus=+v('pr-bungkus'),upah=+v('pr-upah')||80,plastik=+v('pr-plastik')||45;
   if(!kal||!bungkus){el('prev-prod').classList.remove('show');return;}
   const hppK=Math.round((kal*hkal)/bungkus);
-  const totP=plastik*bungkus,totU=upah*bungkus,totKas=totP+totU;
+  const totUpah=upah*bungkus;
   const hpp=hppK+upah+plastik,margin=HARGA_JUAL-hpp;
-  setText('pp-kacang',idr(hppK));setText('pp-plastik-tot',idr(totP));
-  setText('pp-upah-tot',idr(totU));setText('pp-kas',idr(totKas));
-  setText('pp-hpp',idr(hpp));setText('pp-margin',idr(margin)+' ('+Math.round(margin/HARGA_JUAL*100)+'%)');
+  setText('pp-kacang',idr(hppK));
+  setText('pp-upah-tot',idr(totUpah));
+  setText('pp-hpp',idr(hpp));
+  setText('pp-margin',idr(margin)+' ('+Math.round(margin/HARGA_JUAL*100)+'%)');
   el('prev-prod').classList.add('show');
 }
 
@@ -312,10 +323,10 @@ function renderListProd(){
     return`<div class="card" style="margin-bottom:8px">
       <div class="row"><span class="row-label">Tanggal</span><span>${p.tgl}</span></div>
       <div class="row"><span class="row-label">Input → Output</span><span>${p.kal} kaleng → ${p.bungkus} bungkus</span></div>
-      <div class="row"><span class="row-label">HPP estimasi/bungkus</span><span class="tr">${idr(p.hpp)}</span></div>
-      <div class="row"><span class="row-label">Margin estimasi</span><span class="tg">${idr(HARGA_JUAL-p.hpp)}</span></div>
+      <div class="row"><span class="row-label">Modal/bungkus</span><span class="tr">${idr(p.hpp)}</span></div>
+      <div class="row"><span class="row-label">Untung/bungkus</span><span class="tg">${idr(HARGA_JUAL-p.hpp)}</span></div>
       <div class="row"><span class="row-label">Upah packing</span>
-        <span class="${p.upah_lunas?'tg':'tr'}">${idr(totUpah)} — ${p.upah_lunas?'✅ Sudah dibayar':'⏳ Belum dibayar'}</span>
+        <span class="${p.upah_lunas?'tg':'tr'}">${idr(totUpah)} — ${p.upah_lunas?'✅ Udah dibayar':'⏳ Belum dibayar'}</span>
       </div>
       ${ROLE==='owner'&&!p.upah_lunas?`<button class="btn btn-primary btn-sm" style="margin-top:6px;margin-right:6px" onclick="bayarUpah('${p.id}',${p.bungkus},${p.upah||0})">💰 Bayar Upah</button>`:''}
       ${ROLE==='owner'?`<button class="btn btn-danger btn-sm" style="margin-top:6px" onclick="hapusProduksi('${p.id}',${p.kal},${p.bungkus},${p.upah||0},${p.upah_lunas?'true':'false'})">🗑 Hapus</button>`:''}
@@ -332,15 +343,15 @@ async function simpanOutlet(){
   if(res&&res.length)OUTLETS.push(res[0]);else OUTLETS.push(row);
   setv('no-nama','');setv('no-alamat','');
   closeModal('modal-outlet');
-  await addJurnal('outlet',`Outlet baru: ${nama}`,tgl);
+  await addJurnal('outlet',`Kedai baru: ${nama}`,tgl);
   toast('✅ Outlet '+nama+' ditambahkan');renderAll();
 }
 
 async function hapusOutlet(id,nama){
-  if(!confirm('Hapus outlet '+nama+'?'))return;
+  if(!confirm('Hapus kedai '+nama+'?'))return;
   await sb('DELETE','outlets',null,'?id=eq.'+id);
   OUTLETS=OUTLETS.filter(o=>o.id!==id);
-  toast('✅ Outlet dihapus');renderAll();
+  toast('✅ Kedai dihapus');renderAll();
 }
 
 async function editOutletStok(id,nama,stokLama){
@@ -350,22 +361,22 @@ async function editOutletStok(id,nama,stokLama){
   if(isNaN(stok)||stok<0){alert('Angka tidak valid');return;}
   await sb('PATCH','outlets',{stok},`?id=eq.${id}`);
   const o=OUTLETS.find(o=>o.id===id);if(o)o.stok=stok;
-  toast('✅ Stok outlet diupdate');renderAll();
+  toast('✅ Stok kedai diupdate');renderAll();
 }
 
 function renderOutlets(){
   const q=(v('search-outlet')||'').toLowerCase();
   const list=OUTLETS.filter(o=>!q||o.nama.toLowerCase().includes(q)||(o.alamat||'').toLowerCase().includes(q));
-  setText('outlet-sum',OUTLETS.length+' outlet aktif');
+  setText('outlet-sum',OUTLETS.length+' kedai aktif');
   const alarm=OUTLETS.filter(o=>daysSince(o.last_visit)>=7).length;
-  setText('outlet-alarm-sum',alarm>0?'⚠️ '+alarm+' perlu dikunjungi':'✅ Semua sudah dikunjungi');
+  setText('outlet-alarm-sum',alarm>0?'⚠️ '+alarm+' perlu dikunjungi':'✅ Semua kedai udah dikunjungi');
   const e=el('list-outlet');
-  if(!list.length){e.innerHTML='<div class="empty">Belum ada outlet</div>';return;}
+  if(!list.length){e.innerHTML='<div class="empty">Belum ada kedai</div>';return;}
   e.innerHTML=list.map(o=>{
     const d=daysSince(o.last_visit);
     const dotCls=d>=7?'dot-r':d>=5?'dot-a':'dot-g';
     const badgeCls=d>=7?'badge-red':d>=5?'badge-amber':'badge-green';
-    const statusTxt=d>=7?'Kunjungi sekarang':d>=5?'Segera':'Sudah dikunjungi';
+    const statusTxt=d>=7?'Kunjungi sekarang':d>=5?'Segera':'Udah dikunjungi';
     return`<div class="outlet-card">
       <div class="outlet-head">
         <div style="display:flex;gap:8px;align-items:flex-start">
@@ -374,10 +385,10 @@ function renderOutlets(){
         </div>
         <span class="badge ${badgeCls}">${statusTxt}</span>
       </div>
-      <div class="row"><span class="row-label">Stok di warung</span><span class="tb">${o.stok} bungkus</span></div>
+      <div class="row"><span class="row-label">Stok di kedai</span><span class="tb">${o.stok} bungkus</span></div>
       <div class="row"><span class="row-label">Kunjungan terakhir</span><span>${o.last_visit||'Belum'} ${d<999?'('+d+' hari)':''}</span></div>
-      <div class="row"><span class="row-label">Total laku</span><span class="tg">${o.total_laku} bungkus</span></div>
-      <div class="row"><span class="row-label">Total omzet</span><span class="tg">${idr(o.total_omzet,true)}</span></div>
+      <div class="row"><span class="row-label">Total terjual</span><span class="tg">${o.total_laku} bungkus</span></div>
+      <div class="row"><span class="row-label">Total pemasukan</span><span class="tg">${idr(o.total_omzet,true)}</span></div>
       ${ROLE==='owner'?`
       <div style="display:flex;gap:8px;margin-top:8px">
         <button class="btn btn-sm" onclick="editOutletStok('${o.id}','${o.nama}',${o.stok})" style="flex:1">✏️ Edit Stok</button>
@@ -391,7 +402,7 @@ function renderOutlets(){
 function renderAlarm(){
   const urgent=OUTLETS.filter(o=>daysSince(o.last_visit)>=7).sort((a,b)=>daysSince(b.last_visit)-daysSince(a.last_visit));
   const e=el('alarm-list');
-  if(!urgent.length){e.innerHTML='<div class="alert alert-ok">✅ Semua outlet sudah dikunjungi minggu ini</div>';return;}
+  if(!urgent.length){e.innerHTML='<div class="alert alert-ok">✅ Semua kedai sudah dikunjungi minggu ini</div>';return;}
   e.innerHTML=urgent.map(o=>{
     const d=daysSince(o.last_visit);
     return`<div class="outlet-card">
@@ -402,7 +413,7 @@ function renderAlarm(){
         </div>
         <span class="badge badge-red">${d<999?d+' hari lalu':'Belum pernah'}</span>
       </div>
-      <div class="row"><span class="row-label">Stok di warung</span><span>${o.stok} bungkus</span></div>
+      <div class="row"><span class="row-label">Stok di kedai</span><span>${o.stok} bungkus</span></div>
     </div>`;
   }).join('');
 }
@@ -461,12 +472,15 @@ function calcVisit(){
   setText('pv-laba',idr(laba));
   setText('pv-retur',returGudang+' bungkus balik ke gudang'+(rusak>0?' ('+rusak+' rusak dibuang)':''));
   setText('pv-stok-baru',refill+' bungkus');
+  // Warning kalau gudang kosong tapi mau refill
+  const refillWarn=el('refill-warning');
+  if(refillWarn)refillWarn.style.display=(refill>0&&ST.gudang===0)?'block':'none';
   el('prev-visit').classList.add('show');
 }
 
 async function simpanVisit(){
   const id=v('v-outlet');
-  if(!id){toast('Pilih outlet dulu');return;}
+  if(!id){toast('Pilih kedai dulu');return;}
   if(v('v-sisa')===''){toast('Isi sisa bungkus');return;}
   const o=OUTLETS.find(o=>o.id===id);
   if(!o){toast('Outlet tidak ditemukan');return;}
@@ -475,7 +489,11 @@ async function simpanVisit(){
   const omzet=laku*HARGA_JUAL,hpp=lastHPP(),laba=laku*(HARGA_JUAL-hpp);
   const bayarKe=v('v-bayar-ke'),bayarNom=+v('v-bayar-nom')||0;
   const tgl=v('v-tgl');
-  if(refill>ST.gudang){toast('Stok gudang tidak cukup! (ada: '+ST.gudang+')');return;}
+  if(refill>0&&ST.gudang===0){
+    toast('⚠️ Stok Ilham kosong! Tidak bisa isi ulang.');
+    return;
+  }
+  if(refill>ST.gudang){toast('Stok Ilham tidak cukup! (ada: '+ST.gudang+' bungkus)');return;}
   const newStok=refill-rusak;
   await sb('PATCH','outlets',{stok:newStok,last_visit:tgl,total_laku:(o.total_laku||0)+laku,total_omzet:(o.total_omzet||0)+omzet},'?id=eq.'+o.id);
   const oIdx=OUTLETS.findIndex(x=>x.id===id);
@@ -493,13 +511,13 @@ async function simpanVisit(){
   else if(bayarKe==='bank')stPatch.bank=ST.bank+bayarNom;
   else if(bayarKe==='bon')stPatch.piutang=ST.piutang+bayarNom;
   await saveState(stPatch);
-  await addJurnal('visit',`Visit ${o.nama}: ${laku} laku | omzet ${idr(omzet,true)} | refill ${refill}`,tgl);
+  await addJurnal('visit',`Kunjungan ${o.nama}: ${laku} terjual | pemasukan ${idr(omzet,true)} | refill ${refill}`,tgl);
   setv('v-sisa','');setv('v-refill','');setv('v-bayar-nom','');setv('v-rusak','0');
   el('prev-visit').classList.remove('show');
   el('prev-v-info').style.display='none';
   setv('v-area','');
   renderVisitSelect();
-  toast(`✅ Visit ${o.nama}: ${laku} bungkus laku`);
+  toast(`✅ Kunjungan ${o.nama}: ${laku} bungkus laku`);
   renderAll();
 }
 
@@ -522,7 +540,7 @@ async function hapusVisit(id,laku,omzet,laba,hpp,bayarKe,bayarNom,refill,sisa,ru
   else if(bayarKe==='bank')stPatch.bank=ST.bank-bayarNom;
   else if(bayarKe==='bon')stPatch.piutang=Math.max(0,ST.piutang-bayarNom);
   await saveState(stPatch);
-  toast('✅ Visit dihapus & data dibalikkan');renderAll();
+  toast('✅ Kunjungan dihapus & data dibalikkan');renderAll();
 }
 
 function renderListVisit(){
@@ -533,8 +551,8 @@ function renderListVisit(){
       <div class="row"><span class="row-label tb">${v.outlet_nama}</span><span style="color:var(--text3)">${v.tgl}</span></div>
       <div class="row"><span class="row-label">Laku</span><span class="tg tb">${v.laku} bungkus</span></div>
       <div class="row"><span class="row-label">Omzet</span><span class="tg">${idr(v.omzet)}</span></div>
-      <div class="row"><span class="row-label">Sisa retur gudang</span><span>${v.sisa} bungkus</span></div>
-      <div class="row"><span class="row-label">Refill</span><span>${v.refill} bungkus</span></div>
+      <div class="row"><span class="row-label">Sisa balik gudang</span><span>${v.sisa} bungkus</span></div>
+      <div class="row"><span class="row-label">Isi ulang</span><span>${v.refill} bungkus</span></div>
       ${v.rusak?`<div class="row"><span class="row-label">Rusak</span><span class="tr">${v.rusak} bungkus</span></div>`:''}
       <div class="row"><span class="row-label">Bayar</span><span>${idr(v.bayar_nom)} → ${v.bayar_ke==='bon'?'bon':v.bayar_ke}</span></div>
       ${ROLE==='owner'?`<button class="btn btn-danger btn-sm" style="margin-top:6px" onclick="hapusVisit('${v.id}',${v.laku},${v.omzet},${v.laba},${v.hpp},'${v.bayar_ke}',${v.bayar_nom},${v.refill},${v.sisa},${v.rusak||0},'${v.outlet_id}',${v.stok_awal})">🗑 Hapus Visit</button>`:''}
@@ -637,9 +655,9 @@ async function simpanClosing(){
   const totalKasBerkurang=kasOwner+tunaiIlham+kasMotor;
   const ok=confirm(
     'KONFIRMASI CLOSING\n\n'+
-    'Fee Owner: '+idr(owner)+' - '+(bhOwnerStatus==='ambil'?'Sudah diambil (kas -'+idr(owner)+')':'Belum diambil')+'\n'+
-    'Fee Ilham: '+idr(mitra)+' - '+(bhIlhamStatus==='tunai'?'Bayar tunai':bhIlhamStatus==='kasbon'?'Potong kasbon -'+idr(pot):'Tunai '+idr(tunaiIlham)+' + Potong kasbon -'+idr(pot))+'\n'+
-    'Cicilan Motor: '+idr(motor)+' - '+(bhMotorStatus==='bayar'?'Sudah dibayar':'Belum dibayar')+'\n\n'+
+    'Bagian Syarvi: '+idr(owner)+' - '+(bhOwnerStatus==='ambil'?'Sudah diambil (kas -'+idr(owner)+')':'Belum diambil')+'\n'+
+    'Fee Ilham: '+idr(mitra)+' - '+(bhIlhamStatus==='tunai'?'Bayar tunai':bhIlhamStatus==='kasbon'?'Potong kasbon Ilham -'+idr(pot):'Tunai '+idr(tunaiIlham)+' + Potong kasbon Ilham -'+idr(pot))+'\n'+
+    'Cicilan Motor: '+idr(motor)+' - '+(bhMotorStatus==='bayar'?'Udah dibayar':'Belum dibayar')+'\n\n'+
     'Kas berkurang: '+idr(totalKasBerkurang)+'\n'+
     'Kas akhir: '+idr(ST.kas-totalKasBerkurang)+'\n'+
     'Sisa kasbon: '+idr(Math.max(0,kasbonAktif()-pot))+'\n\n'+
@@ -677,7 +695,8 @@ async function simpanClosing(){
   await addJurnal('closing',`Closing: laba ${idr(bhLaba,true)} | kas -${idr(totalKasBerkurang,true)}`);
   setv('bh-input','');
   el('prev-bh').classList.remove('show');
-  toast('✅ Closing tersimpan!');renderAll();
+  KASBON=await sb('GET','kasbon',null,'?order=created_at.desc')||[];
+  toast('✅ Tutup Buku tersimpan!');renderAll();
 }
 
 function renderMotor(){
@@ -693,14 +712,18 @@ function renderMotor(){
 function toggleClosing(id){
   const d=el('closing-detail-'+id);
   if(!d)return;
-  d.style.display=d.style.display==='none'?'block':'none';
+  const isOpen=d.style.display==='block';
+  // Close all first
+  document.querySelectorAll('[id^="closing-detail-"]').forEach(el=>el.style.display='none');
+  // Toggle clicked one
+  if(!isOpen)d.style.display='block';
 }
 
 function renderListClosing(){
   const e=el('list-closing');
   if(!CLOSING.length){e.innerHTML='<div class="empty">Belum ada closing</div>';return;}
   e.innerHTML=CLOSING.map((c,i)=>{
-    const cid=c.id||i;
+    const cid=c.id||('idx'+i);
     return`<div class="card" style="margin-bottom:8px">
       <div onclick="toggleClosing('${cid}')" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center">
         <div>
@@ -710,16 +733,16 @@ function renderListClosing(){
         <span class="badge ${c.bh_laba?'badge-green':'badge-gray'}">${c.bh_laba?'Bagi hasil ✓':'No BH'}</span>
       </div>
       <div id="closing-detail-${cid}" style="display:none;margin-top:10px;border-top:1px solid var(--border);padding-top:10px">
-        <div class="row"><span class="row-label">Omzet minggu</span><span class="tg">${idr(c.omzet_week)}</span></div>
+        <div class="row"><span class="row-label">Pemasukan minggu</span><span class="tg">${idr(c.omzet_week)}</span></div>
         <div class="row"><span class="row-label">Laba minggu</span><span class="tg">${idr(c.laba_week)}</span></div>
         ${c.bh_laba?`
         <div style="border-top:1px solid var(--border);margin:8px 0"></div>
         <div class="row"><span class="row-label tb">Bagi Hasil ${c.bh_skema}</span><span class="badge badge-green">${idr(c.bh_laba)}</span></div>
-        <div class="row"><span class="row-label">👑 Fee Owner</span><span class="tg">${idr(c.bh_owner)} — ${c.bh_owner_status==='ambil'?'Sudah diambil':'Belum diambil'}</span></div>
-        <div class="row"><span class="row-label">🤝 Fee Ilham kotor</span><span>${idr(c.bh_mitra)}</span></div>
-        <div class="row"><span class="row-label">✂️ Potong kasbon</span><span class="tr">${c.bh_pot>0?'-'+idr(c.bh_pot):'-'}</span></div>
-        <div class="row"><span class="row-label">🤝 Ilham bersih</span><span class="tg">${idr(c.bh_mitra-c.bh_pot)}</span></div>
-        <div class="row"><span class="row-label">🏍 Cicilan motor</span><span>${idr(c.bh_motor)} — ${c.bh_motor_status==='bayar'?'Sudah dibayar':'Belum dibayar'}</span></div>
+        <div class="row"><span class="row-label">👑 Bagian Syarvi</span><span class="tg">${idr(c.bh_owner)} — ${c.bh_owner_status==='ambil'?'Sudah diambil':'Belum diambil'}</span></div>
+        <div class="row"><span class="row-label">🤝 Bagian Ilham</span><span>${idr(c.bh_mitra)}</span></div>
+        <div class="row"><span class="row-label">✂️ Potong kasbon Ilham</span><span class="tr">${c.bh_pot>0?'-'+idr(c.bh_pot):'-'}</span></div>
+        <div class="row"><span class="row-label">🤝 Ilham terima</span><span class="tg">${idr(c.bh_mitra-c.bh_pot)}</span></div>
+        <div class="row"><span class="row-label">🏍 Cicilan motor</span><span>${idr(c.bh_motor)} — ${c.bh_motor_status==='bayar'?'Udah dibayar':'Belum dibayar'}</span></div>
         ${c.bh_cad?`<div class="row"><span class="row-label">💰 Dana cadangan</span><span class="tg">${idr(c.bh_cad)}</span></div>`:''}
         `:''}
       </div>
@@ -955,14 +978,14 @@ async function importOutlet(){
     <div class="row"><span style="font-size:12px">${o.nama} — ${o.alamat||'-'}</span><span class="badge badge-gray">${o.stok} bungkus</span></div>`).join('');
   el('import-preview').style.display='block';
   el('import-preview').dataset.rows=JSON.stringify(preview);
-  setText('import-count',preview.length+' outlet siap diimport');
+  setText('import-count',preview.length+' kedai siap diimport');
 }
 
 async function konfirmasiImport(){
   const rows=JSON.parse(el('import-preview').dataset.rows||'[]');
   if(!rows.length)return;
   let sukses=0,gagal=0;
-  toast('Mengimport '+rows.length+' outlet...',10000);
+  toast('Mengimport '+rows.length+' kedai...',10000);
   for(const o of rows){
     try{
       const row={nama:o.nama,alamat:o.alamat,stok:o.stok||0,last_visit:o.last_visit||null,total_laku:0,total_omzet:0,tgl_mulai:today()};
@@ -973,8 +996,8 @@ async function konfirmasiImport(){
   }
   el('import-preview').style.display='none';el('import-file').value='';
   closeModal('modal-import');
-  await addJurnal('outlet',`Import ${sukses} outlet dari Excel`);
-  toast(`✅ ${sukses} outlet berhasil diimport${gagal>0?' | '+gagal+' gagal':''}`);
+  await addJurnal('outlet',`Import ${sukses} kedai dari Excel`);
+  toast(`✅ ${sukses} kedai berhasil diimport${gagal>0?' | '+gagal+' gagal':''}`);
   renderAll();
 }
 
