@@ -9,7 +9,8 @@ let ST = {
   kas:0,bank:0,stok_kal:0,gudang:0,piutang:0,hutang_sup:4320000,
   dana_cad:0,modal:15000000,laba_akum:0,laba_u:0,
   motor_bayar:0,motor_lunas:false,
-  total_omzet:0,total_hpp:0,week_omzet:0,week_laba:0,setup:false
+  total_omzet:0,total_hpp:0,week_omzet:0,week_laba:0,setup:false,
+  utang_owner:0
 };
 let OUTLETS=[],PRODUKSI=[],VISITS=[],KASBON=[],CLOSING=[],JURNAL=[];
 
@@ -184,6 +185,19 @@ function renderNeraca(){
   setk('k3',needVisit===0,'Semua oke',needVisit+' outlet');
   setk('k4',ST.laba_u>=0,'Ada laba','Merugi');
   if(ST.setup){const ss=el('setup-section');if(ss)ss.style.display='none';}
+  // Utang owner
+  const utangOwner=ST.utang_owner||0;
+  const nuo=el('n-utang-owner');
+  if(nuo)nuo.textContent=idr(utangOwner,true);
+  const rowuo=el('row-utang-owner');
+  if(rowuo)rowuo.style.display=utangOwner>0?'flex':'none';
+  // Show/hide ambil piutang section
+  const secpo=el('sec-piutang-owner');
+  const cardpo=el('card-piutang-owner');
+  const kbuo=el('kb-utang-owner');
+  if(secpo)secpo.style.display=utangOwner>0?'block':'none';
+  if(cardpo)cardpo.style.display=utangOwner>0?'block':'none';
+  if(kbuo)kbuo.textContent=idr(utangOwner,true);
 }
 
 function updateClosingSum(){
@@ -627,25 +641,41 @@ function renderMotor(){
     :`<span class="badge badge-amber">Belum lunas (${pct}%) — skema 55/35/10%</span>`;
 }
 
+function toggleClosing(id){
+  const d=el('closing-detail-'+id);
+  if(!d)return;
+  d.style.display=d.style.display==='none'?'block':'none';
+}
+
 function renderListClosing(){
   const e=el('list-closing');
   if(!CLOSING.length){e.innerHTML='<div class="empty">Belum ada closing</div>';return;}
-  e.innerHTML=CLOSING.slice(0,6).map(c=>`
-    <div class="card" style="margin-bottom:8px">
-      <div class="row"><span class="row-label">Tanggal</span><span>${c.tgl}</span></div>
-      <div class="row"><span class="row-label">Omzet minggu</span><span class="tg">${idr(c.omzet_week)}</span></div>
-      <div class="row"><span class="row-label">Laba minggu</span><span class="tg">${idr(c.laba_week)}</span></div>
-      ${c.bh_laba?`
-      <div style="border-top:1px solid var(--border);margin:8px 0"></div>
-      <div class="row"><span class="row-label tb">Bagi Hasil ${c.bh_skema}</span><span class="badge badge-green">${idr(c.bh_laba)}</span></div>
-      <div class="row"><span class="row-label">👑 Fee Owner</span><span class="tg">${idr(c.bh_owner)} — ${c.bh_owner_status==='ambil'?'Sudah diambil':'Belum diambil'}</span></div>
-      <div class="row"><span class="row-label">🤝 Fee Ilham kotor</span><span>${idr(c.bh_mitra)}</span></div>
-      <div class="row"><span class="row-label">✂️ Potong kasbon</span><span class="tr">${c.bh_pot>0?'-'+idr(c.bh_pot):'-'}</span></div>
-      <div class="row"><span class="row-label">🤝 Ilham bersih</span><span class="tg">${idr(c.bh_mitra-c.bh_pot)}</span></div>
-      <div class="row"><span class="row-label">🏍 Cicilan motor</span><span>${idr(c.bh_motor)} — ${c.bh_motor_status==='bayar'?'Sudah dibayar':'Belum dibayar'}</span></div>
-      ${c.bh_cad?`<div class="row"><span class="row-label">💰 Dana cadangan</span><span class="tg">${idr(c.bh_cad)}</span></div>`:''}
-      `:''}
-    </div>`).join('');
+  e.innerHTML=CLOSING.map((c,i)=>{
+    const cid=c.id||i;
+    return`<div class="card" style="margin-bottom:8px">
+      <div onclick="toggleClosing('${cid}')" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div style="font-weight:600;font-size:13px">${c.tgl}</div>
+          <div style="font-size:11px;color:var(--text3)">Omzet ${idr(c.omzet_week,true)} | Laba ${idr(c.laba_week,true)}</div>
+        </div>
+        <span class="badge ${c.bh_laba?'badge-green':'badge-gray'}">${c.bh_laba?'Bagi hasil ✓':'No BH'}</span>
+      </div>
+      <div id="closing-detail-${cid}" style="display:none;margin-top:10px;border-top:1px solid var(--border);padding-top:10px">
+        <div class="row"><span class="row-label">Omzet minggu</span><span class="tg">${idr(c.omzet_week)}</span></div>
+        <div class="row"><span class="row-label">Laba minggu</span><span class="tg">${idr(c.laba_week)}</span></div>
+        ${c.bh_laba?`
+        <div style="border-top:1px solid var(--border);margin:8px 0"></div>
+        <div class="row"><span class="row-label tb">Bagi Hasil ${c.bh_skema}</span><span class="badge badge-green">${idr(c.bh_laba)}</span></div>
+        <div class="row"><span class="row-label">👑 Fee Owner</span><span class="tg">${idr(c.bh_owner)} — ${c.bh_owner_status==='ambil'?'Sudah diambil':'Belum diambil'}</span></div>
+        <div class="row"><span class="row-label">🤝 Fee Ilham kotor</span><span>${idr(c.bh_mitra)}</span></div>
+        <div class="row"><span class="row-label">✂️ Potong kasbon</span><span class="tr">${c.bh_pot>0?'-'+idr(c.bh_pot):'-'}</span></div>
+        <div class="row"><span class="row-label">🤝 Ilham bersih</span><span class="tg">${idr(c.bh_mitra-c.bh_pot)}</span></div>
+        <div class="row"><span class="row-label">🏍 Cicilan motor</span><span>${idr(c.bh_motor)} — ${c.bh_motor_status==='bayar'?'Sudah dibayar':'Belum dibayar'}</span></div>
+        ${c.bh_cad?`<div class="row"><span class="row-label">💰 Dana cadangan</span><span class="tg">${idr(c.bh_cad)}</span></div>`:''}
+        `:''}
+      </div>
+    </div>`;
+  }).join('');
 }
 
 // ─── INPUT MANUAL OMZET & LABA ────────────────────────────
@@ -686,14 +716,35 @@ async function bayarSupplier(){
   if(ROLE!=='owner'){toast('Hanya owner');return;}
   const nom=+v('hs-nom'),dari=v('hs-dari'),tgl=v('hs-tgl');
   if(!nom){toast('Isi nominal');return;}
-  if(dari==='kas'&&ST.kas<nom){toast('Kas tidak cukup');return;}
-  if(dari==='bank'&&ST.bank<nom){toast('Saldo bank tidak cukup');return;}
+  const saldoAkun=dari==='kas'?ST.kas:ST.bank;
   const patch={hutang_sup:Math.max(0,ST.hutang_sup-nom)};
-  if(dari==='kas')patch.kas=ST.kas-nom;else patch.bank=ST.bank-nom;
-  await saveState(patch);
-  await addJurnal('kas',`Bayar supplier ${idr(nom,true)} dari ${dari==='kas'?'Kas':'Bank'}`,tgl);
-  setv('hs-nom','');
-  toast('✅ Pembayaran supplier dicatat!');renderAll();
+  if(saldoAkun>=nom){
+    // Kas cukup - bayar normal
+    if(dari==='kas')patch.kas=ST.kas-nom;else patch.bank=ST.bank-nom;
+    await saveState(patch);
+    await addJurnal('kas',`Bayar supplier ${idr(nom,true)} dari ${dari==='kas'?'Kas':'Bank'}`,tgl);
+    setv('hs-nom','');
+    toast('✅ Pembayaran supplier dicatat!');renderAll();
+  } else {
+    // Kas kurang - tawarkan tambal dari uang pribadi
+    const kurang=nom-saldoAkun;
+    const tambal=confirm(
+      'Kas tidak cukup!\n\n'+
+      'Mau bayar: '+idr(nom)+
+      '\nKas tersedia: '+idr(saldoAkun)+
+      '\nKekurangan: '+idr(kurang)+
+      '\n\nTambal '+idr(kurang)+' dari uang pribadi lo?'+
+      '\n(KBB akan catat utang ke owner sebesar '+idr(kurang)+')'
+    );
+    if(!tambal)return;
+    // Kas habis, kekurangan dari kantong pribadi
+    if(dari==='kas')patch.kas=0;else patch.bank=0;
+    patch.utang_owner=(ST.utang_owner||0)+kurang;
+    await saveState(patch);
+    await addJurnal('kas',`Bayar supplier ${idr(nom,true)} | kas ${idr(saldoAkun,true)} + pribadi ${idr(kurang,true)}`,tgl);
+    setv('hs-nom','');
+    toast('✅ Supplier dibayar! KBB utang ke lo: '+idr(kurang));renderAll();
+  }
 }
 
 async function simpanOps(){
@@ -711,6 +762,22 @@ async function simpanOps(){
   await addJurnal('kas',`${jenis}: ${ket||'-'} | ${idr(nom,true)} dari ${dari}`,tgl);
   setv('op-nom','');setv('op-ket','');
   toast('✅ Pengeluaran dicatat!');renderAll();
+}
+
+// ─── PIUTANG OWNER ────────────────────────────────────────
+async function ambilPiutangOwner(){
+  if(ROLE!=='owner'){toast('Hanya owner');return;}
+  const nom=+v('po-nom');
+  if(!nom){toast('Isi nominal');return;}
+  if(nom>(ST.utang_owner||0)){toast('Melebihi utang KBB ke lo: '+idr(ST.utang_owner));return;}
+  if(ST.kas<nom){toast('Kas tidak cukup');return;}
+  await saveState({
+    kas:ST.kas-nom,
+    utang_owner:Math.max(0,(ST.utang_owner||0)-nom)
+  });
+  await addJurnal('kas',`Owner ambil piutang ${idr(nom,true)} dari kas`);
+  setv('po-nom','');
+  toast('✅ Piutang owner diambil: '+idr(nom));renderAll();
 }
 
 // ─── KASBON ───────────────────────────────────────────────
