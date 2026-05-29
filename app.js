@@ -53,6 +53,7 @@ function toast(msg,dur=2500){
   setTimeout(()=>t.classList.remove('show'),dur);
 }
 function kasbonAktif(){return KASBON.filter(k=>!k.lunas).reduce((s,k)=>s+(k.nom||0),0);}
+function outletStokTotal(){return OUTLETS.reduce((s,o)=>s+(o.stok||0),0);}
 function lastHPP(){return PRODUKSI.length?PRODUKSI[0].hpp:1150;}
 function kedaiStokTotal(){return OUTLETS.reduce((s,o)=>s+(o.stok||0),0);}
 
