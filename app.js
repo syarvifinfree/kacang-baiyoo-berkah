@@ -552,14 +552,12 @@ function prevBH(){
 
 async function simpanClosing(){
   if(ROLE!=='owner'){toast('Hanya owner');return;}
-  const pribadi=+v('cl-pribadi')||0;
   const bhLaba=+v('bh-input')||0;
-  if(bhLaba>0){
-    if(bhLaba>ST.laba_u){toast('Melebihi laba tersedia: '+idr(ST.laba_u));return;}
-    if(!bhOwnerStatus){toast('⚠️ Pilih status fee owner dulu!');return;}
-    if(!bhIlhamStatus){toast('⚠️ Pilih pembayaran fee Ilham dulu!');return;}
-    if(!bhMotorStatus){toast('⚠️ Pilih status cicilan motor dulu!');return;}
-  }
+  if(!bhLaba){toast('Isi nominal laba dulu');return;}
+  if(bhLaba>ST.laba_u){toast('Melebihi laba tersedia: '+idr(ST.laba_u));return;}
+  if(!bhOwnerStatus){toast('⚠️ Pilih status fee owner dulu!');return;}
+  if(!bhIlhamStatus){toast('⚠️ Pilih pembayaran fee Ilham dulu!');return;}
+  if(!bhMotorStatus){toast('⚠️ Pilih status cicilan motor dulu!');return;}
   const lunas=ST.motor_lunas;
   const owner=Math.floor(bhLaba*(lunas?0.51:0.55));
   const mitra=Math.floor(bhLaba*(lunas?0.45:0.35));
@@ -587,7 +585,6 @@ async function simpanClosing(){
   if(!ok)return;
   const patch={};
   patch.kas=ST.kas-totalKasBerkurang;
-  if(pribadi>0)patch.kas+=pribadi;
   if(bhMotorStatus==='bayar'){
     patch.motor_bayar=Math.min(MOTOR_NILAI,ST.motor_bayar+motor);
     patch.motor_lunas=patch.motor_bayar>=MOTOR_NILAI;
@@ -610,12 +607,12 @@ async function simpanClosing(){
     bh_skema:lunas?'51/45/4':'55/35/10',
     bh_owner_status:bhOwnerStatus,bh_ilham_status:bhIlhamStatus,bh_motor_status:bhMotorStatus
   };
-  const closingRow={omzet_week:ST.week_omzet,laba_week:ST.week_laba,pribadi,tgl:today(),...bhData};
+  const closingRow={omzet_week:ST.week_omzet,laba_week:ST.week_laba,tgl:today(),...bhData};
   const res=await sb('POST','closing',closingRow);
   if(res&&res.length)CLOSING.unshift(res[0]);else CLOSING.unshift(closingRow);
   await saveState(patch);
   await addJurnal('closing',`Closing: laba ${idr(bhLaba,true)} | kas -${idr(totalKasBerkurang,true)}`);
-  setv('cl-pribadi','');setv('bh-input','');
+  setv('bh-input','');
   el('prev-bh').classList.remove('show');
   toast('✅ Closing tersimpan!');renderAll();
 }
