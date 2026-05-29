@@ -645,36 +645,16 @@ async function simpanClosing(){
 
   // Konfirmasi
   const ok = confirm(
-    '📋 KONFIRMASI CLOSING
-
-' +
-    '👑 Fee Owner: '+idr(owner)+'
-'+
-    '   → '+(bhOwnerStatus==='ambil'?'Sudah diambil (kas -'+idr(owner)+')':'Belum diambil')+'
-
-'+
-    '🤝 Fee Ilham: '+idr(mitra)+'
-'+
-    (bhIlhamStatus==='tunai'?'   → Bayar tunai (kas -'+idr(mitra)+')':'')+
-    (bhIlhamStatus==='kasbon'?'   → Potong kasbon -'+idr(pot):'') +
-    (bhIlhamStatus==='sebagian'?'   → Tunai -'+idr(tunaiIlham)+' + Potong kasbon -'+idr(pot):'')+'
-
-'+
-    '🏍 Cicilan Motor: '+idr(motor)+'
-'+
-    '   → '+(bhMotorStatus==='bayar'?'Sudah dibayar (kas -'+idr(motor)+')':'Belum dibayar')+'
-
-'+
-    '💰 Total kas berkurang: '+idr(totalKasBerkurang)+'
-'+
-    '💰 Kas akhir: '+idr(ST.kas - totalKasBerkurang)+'
-'+
-    '📝 Sisa kasbon Ilham: '+idr(Math.max(0, kasbonAktif()-pot))+'
-
-'+
+    'KONFIRMASI CLOSING\n\n' +
+    'Fee Owner: ' + idr(owner) + ' - ' + (bhOwnerStatus==='ambil'?'Sudah diambil':'Belum diambil') + '\n' +
+    'Fee Ilham: ' + idr(mitra) + ' - ' + (bhIlhamStatus==='tunai'?'Bayar tunai':(bhIlhamStatus==='kasbon'?'Potong kasbon':'Sebagian')) + '\n' +
+    'Cicilan Motor: ' + idr(motor) + ' - ' + (bhMotorStatus==='bayar'?'Sudah dibayar':'Belum dibayar') + '\n\n' +
+    'Kas berkurang: ' + idr(totalKasBerkurang) + '\n' +
+    'Kas akhir: ' + idr(ST.kas - totalKasBerkurang) + '\n' +
+    'Sisa kasbon: ' + idr(Math.max(0, kasbonAktif()-pot)) + '\n\n' +
     'Lanjut simpan?'
   );
-  if(!ok) return;
+    if(!ok) return;
 
   const patch = {};
 
