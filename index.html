@@ -247,7 +247,7 @@
       <div class="met"><div class="met-label">🏦 Bank Mandiri</div><div class="met-val" id="n-bank">-</div><div class="met-sub">rekening</div></div>
       <div class="met"><div class="met-label">📦 Stok kaleng</div><div class="met-val" id="n-kal">-</div><div class="met-sub">kaleng</div></div>
       <div class="met"><div class="met-label">🛍 Stok Gudang</div><div class="met-val" id="n-gudang">-</div><div class="met-sub">bungkus (Ilham)</div></div>
-      <div class="met"><div class="met-label">🏪 Di Kedai</div><div class="met-val" id="n-outlet-stok">-</div><div class="met-sub">bungkus konsinyasi</div></div>
+      <div class="met"><div class="met-label">🏪 Di Kedai</div><div class="met-val" id="n-outlet-stok">-</div><div class="met-sub">kacang di kedai</div></div>
       <div class="met"><div class="met-label">📋 Bon Belum Lunas</div><div class="met-val tr" id="n-piutang">-</div><div class="met-sub">bon belum lunas</div></div>
     </div>
     <div class="card">
@@ -279,7 +279,7 @@
           <div><label>Stok kaleng</label><input type="number" id="s-kal" placeholder="0"></div>
           <div><label>Stok Gudang (bungkus)</label><input type="number" id="s-gudang" placeholder="0"></div>
           <div><label>Bon Belum Lunas (Rp)</label><input type="number" id="s-piutang" placeholder="0"></div>
-          <div><label>Utang Supplier (Rp)</label><input type="number" id="s-hsup" placeholder="4320000"></div>
+          <div><label>Utang Supplier (Rp)</label><input type="number" id="s-hsup" placeholder="4320000" value="4320000"></div>
           <div><label>Dana cadangan (Rp)</label><input type="number" id="s-cad" placeholder="0"></div>
         </div>
         <button class="btn btn-primary" onclick="simpanSetup()">🔒 Simpan & Kunci Saldo Awal</button>
@@ -339,60 +339,122 @@
 
   <!-- PAGE: VISIT -->
   <div class="page" id="page-visit">
-    <div class="alert alert-info">ℹ️ Sisa di warung otomatis retur ke gudang Ilham. Laku = omzet & laba.</div>
-    <div class="sec">Catat kunjungan</div>
+
+  <!-- TABS -->
+  <div style="display:flex;border-bottom:1px solid var(--border);margin-bottom:0">
+    <button id="tab-catat-btn" onclick="switchVisitTab('catat')" 
+      style="flex:1;padding:10px;border:none;background:var(--bg);font-size:13px;font-weight:600;color:var(--text);border-bottom:2px solid var(--text);cursor:pointer">
+      📝 Catat
+    </button>
+    <button id="tab-riwayat-btn" onclick="switchVisitTab('riwayat')"
+      style="flex:1;padding:10px;border:none;background:var(--bg);font-size:13px;font-weight:500;color:var(--text3);border-bottom:2px solid transparent;cursor:pointer">
+      📋 Riwayat
+    </button>
+  </div>
+
+  <!-- TAB CATAT -->
+  <div id="tab-catat">
+    <div class="alert alert-info" style="margin-top:8px">ℹ️ Sisa di warung otomatis balik ke stok Ilham. Laku = pemasukan & laba.</div>
+    
     <div class="card">
+      <!-- Search -->
+      <label>🔍 Cari nama kedai</label>
+      <input type="text" id="v-search" placeholder="Ketik nama kedai..." oninput="searchKedai()" autocomplete="off" style="margin-bottom:6px">
+      <div id="v-search-results" style="display:none;border:1px solid var(--border);border-radius:8px;max-height:200px;overflow-y:auto;margin-bottom:8px"></div>
+      
+      <div style="text-align:center;color:var(--text3);font-size:12px;margin:4px 0">— atau pilih dari area —</div>
+      
       <label>Pilih area</label>
       <select id="v-area" onchange="filterOutletByArea()" style="margin-bottom:8px">
         <option value="">-- semua area --</option>
       </select>
-      <label>Pilih outlet</label>
+      <label>Pilih kedai</label>
       <select id="v-outlet" onchange="prevVisitOutlet()">
-        <option value="">-- pilih warung --</option>
+        <option value="">-- pilih kedai --</option>
       </select>
-      <div class="preview show" id="prev-v-info" style="display:none">
-        <div class="row"><span class="row-label">Stok di outlet</span><span id="pvi-stok">-</span></div>
-        <div class="row"><span class="row-label">Terakhir dikunjungi</span><span id="pvi-last">-</span></div>
+    </div>
+
+    <div id="prev-v-info" style="display:none" class="card">
+      <div class="row"><span class="row-label tb" id="prev-v-nama">-</span><span class="badge badge-gray" id="prev-v-area">-</span></div>
+      <div class="row"><span class="row-label">Stok sekarang</span><span class="tb tg" id="pvi-stok">-</span></div>
+      <div class="row"><span class="row-label">Kunjungan terakhir</span><span id="pvi-last">-</span></div>
+    </div>
+
+    <div class="card">
+      <div class="fg">
+        <div>
+          <label>Sisa di warung</label>
+          <input type="number" id="v-sisa" placeholder="cth: 5" oninput="calcVisit()">
+        </div>
+        <div>
+          <label>Isi Ulang (bungkus)</label>
+          <input type="number" id="v-refill" placeholder="cth: 25" oninput="calcVisit()">
+          <div id="refill-warning" style="display:none;font-size:11px;color:var(--red);margin-top:4px">⚠️ Stok Ilham kosong!</div>
+        </div>
       </div>
-      <div class="fg" style="margin-bottom:10px">
-        <div><label>Sisa di warung</label><input type="number" id="v-sisa" placeholder="cth: 5" oninput="calcVisit()"></div>
-        <div><label>Isi Ulang (bungkus)</label><input type="number" id="v-refill" placeholder="cth: 25" oninput="calcVisit()">
-        <div id="refill-warning" style="display:none;font-size:11px;color:var(--red);margin-top:4px">⚠️ Stok Ilham kosong! Tidak bisa isi ulang.</div></div>
+      <div class="fg" style="margin-top:8px">
+        <div>
+          <label>Bungkus rusak</label>
+          <input type="number" id="v-rusak" placeholder="0" value="0" oninput="calcVisit()">
+        </div>
+        <div>
+          <label>Tanggal visit</label>
+          <input type="date" id="v-tgl">
+        </div>
       </div>
+
       <div class="preview" id="prev-visit">
-        <div class="row"><span class="row-label">Bungkus laku</span><span class="tg tb" id="pv-laku">-</span></div>
-        <div class="row"><span class="row-label">Omzet (× Rp1.600)</span><span class="tg" id="pv-omzet">-</span></div>
-        <div class="row"><span class="row-label">Laba kotor</span><span class="tg" id="pv-laba">-</span></div>
-        <div class="row"><span class="row-label">Sisa retur ke gudang</span><span class="ta" id="pv-retur">-</span></div>
-        <div class="row"><span class="row-label">Stok outlet setelah refill</span><span class="ti" id="pv-stok-baru">-</span></div>
+        <div class="row"><span class="row-label">Laku</span><span class="tg tb" id="pv-laku">-</span></div>
+        <div class="row"><span class="row-label">Pemasukan</span><span class="tg" id="pv-omzet">-</span></div>
+        <div class="row"><span class="row-label">Laba</span><span class="tg" id="pv-laba">-</span></div>
+        <div class="row"><span class="row-label">Balik ke gudang</span><span id="pv-retur">-</span></div>
+        <div class="row"><span class="row-label">Stok baru di kedai</span><span id="pv-stok-baru">-</span></div>
       </div>
-      <div class="fg" style="margin-bottom:10px">
+
+      <div class="fg" style="margin-top:8px">
         <div>
           <label>Pembayaran ke</label>
           <select id="v-bayar-ke">
-            <option value="kas">Uang Kas</option>
+            <option value="kas">Kas KBB</option>
             <option value="bank">Bank Mandiri</option>
-            <option value="bon">Bon (piutang)</option>
+            <option value="bon">Bon (belum bayar)</option>
           </select>
         </div>
-        <div><label>Nominal bayar (Rp)</label><input type="number" id="v-bayar-nom" placeholder="0"></div>
+        <div>
+          <label>Nominal bayar (Rp)</label>
+          <input type="number" id="v-bayar-nom" placeholder="0">
+        </div>
       </div>
-      <div class="fg" style="margin-bottom:10px">
-        <div><label>Bungkus rusak</label><input type="number" id="v-rusak" value="0"></div>
-        <div><label>Tanggal visit</label><input type="date" id="v-tgl"></div>
-      </div>
-      <button class="btn btn-primary" onclick="simpanVisit()">✅ Catat Kunjungan</button>
     </div>
 
-    <div class="sec">⚠️ Kedai Belum Dikunjungi</div>
-    <div id="alarm-list"><div class="loading">Memuat...</div></div>
+    <button class="btn btn-primary" style="width:100%" onclick="simpanVisit()">✅ Catat Kunjungan</button>
 
-    <div class="sec">Riwayat visit</div>
+    <div class="sec" style="margin-top:16px">⚠️ Kedai Belum Dikunjungi</div>
+    <div id="alarm-list"><div class="loading">Memuat...</div></div>
+  </div>
+
+  <!-- TAB RIWAYAT -->
+  <div id="tab-riwayat" style="display:none">
+    <div class="card" style="margin-top:8px">
+      <div class="fg">
+        <div>
+          <label>Filter area</label>
+          <select id="rv-area" onchange="renderListVisit()">
+            <option value="">Semua area</option>
+          </select>
+        </div>
+        <div>
+          <label>Filter kedai</label>
+          <select id="rv-outlet" onchange="renderListVisit()">
+            <option value="">Semua kedai</option>
+          </select>
+        </div>
+      </div>
+    </div>
     <div id="list-visit"><div class="loading">Memuat...</div></div>
   </div>
 
-  <!-- PAGE: CLOSING -->
-  <div class="page" id="page-closing">
+<div class="page" id="page-closing">
     <div class="alert alert-ok">✅ Closing mingguan — lakukan tiap akhir pekan.</div>
 
     <div class="sec">Input Manual <span class="badge badge-amber" style="margin-left:4px;vertical-align:middle">kalau belum via kunjungan</span></div>
