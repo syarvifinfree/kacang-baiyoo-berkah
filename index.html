@@ -231,54 +231,55 @@
 
   <!-- NAV -->
   <div class="nav" id="main-nav">
-    <button class="nav-btn active" onclick="gp('neraca',this)">Neraca</button>
+    <button class="nav-btn active" onclick="gp('neraca',this)">Beranda</button>
     <button class="nav-btn" onclick="gp('produksi',this)">Produksi</button>
-    <button class="nav-btn" onclick="gp('outlet',this)">Outlet</button>
-    <button class="nav-btn" onclick="gp('visit',this)">Visit</button>
-    <button class="nav-btn" onclick="gp('closing',this)">Closing</button>
-    <button class="nav-btn" onclick="gp('kas',this)">Kas & Bank</button>
-    <button class="nav-btn" onclick="gp('jurnal',this)">Jurnal</button>
+    <button class="nav-btn" onclick="gp('outlet',this)">Kedai</button>
+    <button class="nav-btn" onclick="gp('visit',this)">Ngampas</button>
+    <button class="nav-btn" onclick="gp('closing',this)">Tutup Buku</button>
+    <button class="nav-btn" onclick="gp('kas',this)">Keuangan</button>
+    <button class="nav-btn" onclick="gp('jurnal',this)">Riwayat</button>
   </div>
 
   <!-- PAGE: NERACA -->
   <div class="page active" id="page-neraca">
     <div class="mg">
-      <div class="met"><div class="met-label">💵 Kas KBB</div><div class="met-val" id="n-kas">-</div><div class="met-sub">tunai</div></div>
+      <div class="met"><div class="met-label">💵 Uang Kas</div><div class="met-val" id="n-kas">-</div><div class="met-sub">tunai</div></div>
       <div class="met"><div class="met-label">🏦 Bank Mandiri</div><div class="met-val" id="n-bank">-</div><div class="met-sub">rekening</div></div>
       <div class="met"><div class="met-label">📦 Stok kaleng</div><div class="met-val" id="n-kal">-</div><div class="met-sub">kaleng</div></div>
-      <div class="met"><div class="met-label">🛍 Gudang utama</div><div class="met-val" id="n-gudang">-</div><div class="met-sub">bungkus (Ilham)</div></div>
-      <div class="met"><div class="met-label">🏪 Di outlet</div><div class="met-val" id="n-outlet-stok">-</div><div class="met-sub">bungkus konsinyasi</div></div>
-      <div class="met"><div class="met-label">📋 Piutang mitra</div><div class="met-val tr" id="n-piutang">-</div><div class="met-sub">bon belum lunas</div></div>
+      <div class="met"><div class="met-label">🛍 Stok Gudang</div><div class="met-val" id="n-gudang">-</div><div class="met-sub">bungkus (Ilham)</div></div>
+      <div class="met"><div class="met-label">🏪 Di Kedai</div><div class="met-val" id="n-outlet-stok">-</div><div class="met-sub">bungkus konsinyasi</div></div>
+      <div class="met"><div class="met-label">📋 Bon Belum Lunas</div><div class="met-val tr" id="n-piutang">-</div><div class="met-sub">bon belum lunas</div></div>
     </div>
     <div class="card">
-      <div class="row"><span class="row-label">Hutang supplier</span><span class="tr" id="n-hsup">-</span></div>
-      <div class="row" id="row-utang-upah" style="display:none"><span class="row-label" style="color:var(--amber)">Utang upah packing</span><span class="tr" id="n-utang-upah">Rp0</span></div>
-      <div class="row" id="row-utang-owner" style="display:none"><span class="row-label" style="color:var(--amber)">Utang KBB ke Owner</span><span class="tr" id="n-utang-owner">Rp0</span></div>
+      <div class="row"><span class="row-label">Utang Supplier</span><span class="tr" id="n-hsup">-</span></div>
+      <div class="row" id="row-utang-upah" style="display:none"><span class="row-label" style="color:var(--amber)">Utang Upah</span><span class="tr" id="n-utang-upah">Rp0</span></div>
+      <div class="row" id="row-utang-owner" style="display:none"><span class="row-label" style="color:var(--amber)">Utang Owner</span><span class="tr" id="n-utang-owner">Rp0</span></div>
+      <div class="row" style="border-top:1px solid var(--border);padding-top:6px;margin-top:2px"><span class="row-label tb" style="color:var(--red)">Total Utang</span><span class="tr tb" id="n-total-utang">-</span></div>
       <div class="row"><span class="row-label">Dana cadangan</span><span class="tg" id="n-cad">-</span></div>
-      <div class="row"><span class="row-label">Modal owner</span><span class="ti" id="n-modal">-</span></div>
+      <div class="row"><span class="row-label">Modal Owner</span><span class="ti" id="n-modal">-</span></div>
       <div class="divider"></div>
-      <div class="row"><span class="tb">Laba akumulasi</span><span class="tg tb" id="n-laba">-</span></div>
+      <div class="row"><span class="tb">Total Laba</span><span class="tg tb" id="n-laba">-</span></div>
       <div class="row"><span class="row-label">Laba belum dibagi</span><span class="ta" id="n-labau">-</span></div>
     </div>
 
     <div class="sec">Kontrol mingguan</div>
     <div class="card">
-      <div class="row"><span class="row-label">Stok masuk akal?</span><span id="k1" class="badge">-</span></div>
-      <div class="row"><span class="row-label">Piutang mitra aman?</span><span id="k2" class="badge">-</span></div>
-      <div class="row"><span class="row-label">Outlet perlu dikunjungi</span><span id="k3" class="badge">-</span></div>
-      <div class="row"><span class="row-label">Masih ada laba?</span><span id="k4" class="badge">-</span></div>
+      <div class="row"><span class="row-label">Stok aman?</span><span id="k1" class="badge">-</span></div>
+      <div class="row"><span class="row-label">Bon aman?</span><span id="k2" class="badge">-</span></div>
+      <div class="row"><span class="row-label">Kedai perlu dikunjungi</span><span id="k3" class="badge">-</span></div>
+      <div class="row"><span class="row-label">Usaha untung?</span><span id="k4" class="badge">-</span></div>
     </div>
 
     <div id="setup-section">
       <div class="sec">Saldo awal <span class="badge badge-amber" style="margin-left:4px;vertical-align:middle">isi sekali, kunci selamanya</span></div>
       <div class="card" id="setup-card">
         <div class="fg" style="margin-bottom:10px">
-          <div><label>Kas KBB (Rp)</label><input type="number" id="s-kas" placeholder="0"></div>
+          <div><label>Uang Kas (Rp)</label><input type="number" id="s-kas" placeholder="0"></div>
           <div><label>Bank Mandiri (Rp)</label><input type="number" id="s-bank" placeholder="0"></div>
           <div><label>Stok kaleng</label><input type="number" id="s-kal" placeholder="0"></div>
-          <div><label>Gudang utama (bungkus)</label><input type="number" id="s-gudang" placeholder="0"></div>
-          <div><label>Piutang mitra (Rp)</label><input type="number" id="s-piutang" placeholder="0"></div>
-          <div><label>Hutang supplier (Rp)</label><input type="number" id="s-hsup" placeholder="4320000"></div>
+          <div><label>Stok Gudang (bungkus)</label><input type="number" id="s-gudang" placeholder="0"></div>
+          <div><label>Bon Belum Lunas (Rp)</label><input type="number" id="s-piutang" placeholder="0"></div>
+          <div><label>Utang Supplier (Rp)</label><input type="number" id="s-hsup" placeholder="4320000"></div>
           <div><label>Dana cadangan (Rp)</label><input type="number" id="s-cad" placeholder="0"></div>
         </div>
         <button class="btn btn-primary" onclick="simpanSetup()">🔒 Simpan & Kunci Saldo Awal</button>
@@ -294,13 +295,13 @@
 
   <!-- PAGE: PRODUKSI -->
   <div class="page" id="page-produksi">
-    <div class="alert alert-info">ℹ️ Repack: kaleng keluar → bungkus masuk gudang Ilham. Biaya plastik & upah otomatis potong kas.</div>
+    <div class="alert alert-info">ℹ️ Catat produksi: kaleng masuk → bungkus masuk Stok Ilham. Upah dicatat sebagai utang, dibayar terpisah.</div>
     <div class="sec">Input produksi</div>
     <div class="card">
       <div class="fg" style="margin-bottom:10px">
-        <div><label>Kaleng dipakai</label><input type="number" id="pr-kal" placeholder="cth: 10" oninput="prevProd()"></div>
+        <div><label>Jumlah kaleng</label><input type="number" id="pr-kal" placeholder="cth: 10" oninput="prevProd()"></div>
         <div><label>Harga/kaleng (Rp)</label><input type="number" id="pr-hkal" value="270000" oninput="prevProd()"></div>
-        <div><label>Hasil bungkus aktual</label><input type="number" id="pr-bungkus" placeholder="cth: 2750" oninput="prevProd()"></div>
+        <div><label>Hasil bungkus</label><input type="number" id="pr-bungkus" placeholder="cth: 2750" oninput="prevProd()"></div>
         <div><label>Upah packing/bungkus</label><input type="number" id="pr-upah" value="80" oninput="prevProd()"></div>
       </div>
       <label>Plastik/bungkus (Rp)</label>
@@ -309,14 +310,12 @@
       <input type="date" id="pr-tgl">
       <div class="preview" id="prev-prod">
         <div class="row"><span class="row-label">HPP kacang/bungkus</span><span id="pp-kacang">-</span></div>
-        <div class="row"><span class="row-label">Biaya plastik (kas keluar)</span><span class="tr" id="pp-plastik-tot">-</span></div>
         <div class="row"><span class="row-label">Biaya upah (kas keluar)</span><span class="tr" id="pp-upah-tot">-</span></div>
-        <div class="row"><span class="row-label">Total kas keluar</span><span class="tr tb" id="pp-kas">-</span></div>
         <div class="divider"></div>
-        <div class="row"><span class="row-label tb">HPP real/bungkus</span><span class="tr tb" id="pp-hpp">-</span></div>
-        <div class="row"><span class="row-label">Margin/bungkus</span><span class="tg" id="pp-margin">-</span></div>
+        <div class="row"><span class="row-label tb">Modal/bungkus (estimasi)</span><span class="tr tb" id="pp-hpp">-</span></div>
+        <div class="row"><span class="row-label">Untung/bungkus (estimasi)</span><span class="tg" id="pp-margin">-</span></div>
       </div>
-      <button class="btn btn-primary" onclick="simpanProduksi()">⚙️ Simpan Produksi</button>
+      <button class="btn btn-primary" onclick="simpanProduksi()">⚙️ Catat Produksi</button>
     </div>
     <div class="sec">Riwayat produksi</div>
     <div id="list-prod"><div class="loading">Memuat...</div></div>
@@ -340,7 +339,7 @@
 
   <!-- PAGE: VISIT -->
   <div class="page" id="page-visit">
-    <div class="alert alert-info">ℹ️ Sisa bungkus di warung otomatis retur ke gudang Ilham. Laku = omzet & laba.</div>
+    <div class="alert alert-info">ℹ️ Sisa di warung otomatis retur ke gudang Ilham. Laku = omzet & laba.</div>
     <div class="sec">Catat kunjungan</div>
     <div class="card">
       <label>Pilih area</label>
@@ -356,8 +355,9 @@
         <div class="row"><span class="row-label">Terakhir dikunjungi</span><span id="pvi-last">-</span></div>
       </div>
       <div class="fg" style="margin-bottom:10px">
-        <div><label>Sisa bungkus di warung</label><input type="number" id="v-sisa" placeholder="cth: 5" oninput="calcVisit()"></div>
-        <div><label>Refill (bungkus)</label><input type="number" id="v-refill" placeholder="cth: 25" oninput="calcVisit()"></div>
+        <div><label>Sisa di warung</label><input type="number" id="v-sisa" placeholder="cth: 5" oninput="calcVisit()"></div>
+        <div><label>Isi Ulang (bungkus)</label><input type="number" id="v-refill" placeholder="cth: 25" oninput="calcVisit()">
+        <div id="refill-warning" style="display:none;font-size:11px;color:var(--red);margin-top:4px">⚠️ Stok Ilham kosong! Tidak bisa isi ulang.</div></div>
       </div>
       <div class="preview" id="prev-visit">
         <div class="row"><span class="row-label">Bungkus laku</span><span class="tg tb" id="pv-laku">-</span></div>
@@ -368,9 +368,9 @@
       </div>
       <div class="fg" style="margin-bottom:10px">
         <div>
-          <label>Outlet bayar ke</label>
+          <label>Pembayaran ke</label>
           <select id="v-bayar-ke">
-            <option value="kas">Kas KBB</option>
+            <option value="kas">Uang Kas</option>
             <option value="bank">Bank Mandiri</option>
             <option value="bon">Bon (piutang)</option>
           </select>
@@ -381,10 +381,10 @@
         <div><label>Bungkus rusak</label><input type="number" id="v-rusak" value="0"></div>
         <div><label>Tanggal visit</label><input type="date" id="v-tgl"></div>
       </div>
-      <button class="btn btn-primary" onclick="simpanVisit()">✅ Simpan Visit</button>
+      <button class="btn btn-primary" onclick="simpanVisit()">✅ Catat Kunjungan</button>
     </div>
 
-    <div class="sec">⚠️ Alarm — belum dikunjungi</div>
+    <div class="sec">⚠️ Kedai Belum Dikunjungi</div>
     <div id="alarm-list"><div class="loading">Memuat...</div></div>
 
     <div class="sec">Riwayat visit</div>
@@ -395,7 +395,7 @@
   <div class="page" id="page-closing">
     <div class="alert alert-ok">✅ Closing mingguan — lakukan tiap akhir pekan.</div>
 
-    <div class="sec">Input manual omzet & laba <span class="badge badge-amber" style="margin-left:4px;vertical-align:middle">kalau belum via visit</span></div>
+    <div class="sec">Input Manual <span class="badge badge-amber" style="margin-left:4px;vertical-align:middle">kalau belum via kunjungan</span></div>
     <div class="card">
       <div class="fg" style="margin-bottom:10px">
         <div><label>Omzet (Rp)</label><input type="number" id="manual-omzet" placeholder="cth: 5978000"></div>
@@ -407,15 +407,16 @@
 
     <div class="sec">Ringkasan minggu ini</div>
     <div class="card">
-      <div class="row"><span class="row-label">Omzet minggu ini</span><span class="tg tb" id="cl-omzet-week">Rp0</span></div>
-      <div class="row"><span class="row-label">Laba kotor minggu ini</span><span class="tg" id="cl-laba-week">Rp0</span></div>
+      <div class="row"><span class="row-label">Pemasukan minggu ini</span><span class="tg tb" id="cl-omzet-week">Rp0</span></div>
+      <div class="row"><span class="row-label">Laba minggu ini</span><span class="tg" id="cl-laba-week">Rp0</span></div>
       <div class="row"><span class="row-label">Laba belum dibagi</span><span class="ta" id="cl-labau">Rp0</span></div>
-      <div class="row"><span class="row-label">Kasbon Ilham aktif</span><span class="tr" id="cl-kasbon">Rp0</span></div>
+      <div class="row"><span class="row-label">Kasbon Ilham</span><span class="tr" id="cl-kasbon">Rp0</span></div>
     </div>
 
 
 
-    <div class="sec">Bagi hasil minggu ini</div>
+    <div id="bh-section">
+    <div class="sec">Bagi Hasil</div>
     <div class="card">
       <label>Laba yang dibagi (Rp) — kosongkan kalau skip</label>
       <input type="number" id="bh-input" placeholder="0" oninput="prevBH()">
@@ -423,7 +424,7 @@
       <div class="preview" id="prev-bh">
         <div class="feebar" id="bh-bar"></div>
         <div class="divider"></div>
-        <div class="row"><span class="row-label tb">👑 Fee Owner</span><span class="tg tb" id="bh-owner">-</span></div>
+        <div class="row"><span class="row-label tb">👑 Bagian Syarvi</span><span class="tg tb" id="bh-owner">-</span></div>
         <div style="margin:6px 0 10px">
           <label style="margin-bottom:4px">Fee owner sudah diambil?</label>
           <div style="display:flex;gap:8px">
@@ -432,22 +433,22 @@
           </div>
         </div>
         <div class="divider"></div>
-        <div class="row"><span class="row-label tb">🏍 Fee Ilham (kotor)</span><span id="bh-mitra">-</span></div>
+        <div class="row"><span class="row-label tb">🏍 Bagian Ilham</span><span id="bh-mitra">-</span></div>
         <div style="margin:6px 0 10px">
           <label style="margin-bottom:4px">Pembayaran fee Ilham</label>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
             <button class="btn btn-sm" id="btn-ilham-tunai" onclick="setIlhamStatus('tunai')" style="flex:1">💵 Bayar tunai</button>
-            <button class="btn btn-sm" id="btn-ilham-kasbon" onclick="setIlhamStatus('kasbon')" style="flex:1">✂️ Potong kasbon</button>
+            <button class="btn btn-sm" id="btn-ilham-kasbon" onclick="setIlhamStatus('kasbon')" style="flex:1">✂️ Potong Kasbon Ilham</button>
             <button class="btn btn-sm" id="btn-ilham-sebagian" onclick="setIlhamStatus('sebagian')" style="flex:1">⚖️ Sebagian</button>
           </div>
           <div id="ilham-sebagian-input" style="display:none;margin-top:8px">
             <label>Bayar tunai (Rp)</label>
             <input type="number" id="ilham-tunai-nom" placeholder="0" oninput="hitungSebagian()">
-            <div class="row"><span class="row-label">Potong kasbon</span><span id="ilham-kasbon-pot">-</span></div>
+            <div class="row"><span class="row-label">Potong Kasbon Ilham</span><span id="ilham-kasbon-pot">-</span></div>
           </div>
         </div>
-        <div class="row"><span class="row-label">Potong kasbon</span><span class="tr" id="bh-pot">-</span></div>
-        <div class="row"><span class="row-label">Ilham terima bersih</span><span class="tg tb" id="bh-net">-</span></div>
+        <div class="row"><span class="row-label">Potong Kasbon Ilham</span><span class="tr" id="bh-pot">-</span></div>
+        <div class="row"><span class="row-label">Ilham Terima</span><span class="tg tb" id="bh-net">-</span></div>
         <div class="row"><span class="row-label">Sisa kasbon Ilham</span><span class="tr" id="bh-sisa-kasbon">-</span></div>
         <div class="divider"></div>
         <div class="divider"></div>
@@ -480,18 +481,18 @@
   <!-- PAGE: KAS & BANK -->
   <div class="page" id="page-kas">
     <div class="mg">
-      <div class="met"><div class="met-label">💵 Kas KBB</div><div class="met-val" id="kb-kas">-</div></div>
+      <div class="met"><div class="met-label">💵 Uang Kas</div><div class="met-val" id="kb-kas">-</div></div>
       <div class="met"><div class="met-label">🏦 Bank Mandiri</div><div class="met-val" id="kb-bank">-</div></div>
     </div>
 
-    <div class="sec">Beli kacang dari supplier</div>
+    <div class="sec">Beli Kacang</div>
     <div class="card">
       <div class="fg" style="margin-bottom:10px">
         <div><label>Jumlah kaleng</label><input type="number" id="sup-kal" placeholder="cth: 10"></div>
         <div><label>Harga/kaleng (Rp)</label><input type="number" id="sup-hkal" value="270000"></div>
-        <div><label>Bayar sekarang (Rp)</label><input type="number" id="sup-bayar" placeholder="0"></div>
+        <div><label>Dibayar sekarang (Rp)</label><input type="number" id="sup-bayar" placeholder="0"></div>
         <div><label>Dari</label>
-          <select id="sup-dari"><option value="bank">Bank (tf pribadi)</option><option value="kas">Kas KBB</option></select>
+          <select id="sup-dari"><option value="bank">Bank (tf pribadi)</option><option value="kas">Uang Kas</option></select>
         </div>
       </div>
       <label>Tanggal</label><input type="date" id="sup-tgl">
@@ -499,28 +500,28 @@
       <button class="btn btn-primary" onclick="beliKacang()">+ Catat Pembelian</button>
     </div>
 
-    <div class="sec">Bayar hutang supplier</div>
+    <div class="sec">Bayar Utang Supplier</div>
     <div class="card">
-      <div class="row" style="margin-bottom:10px"><span class="row-label">Sisa hutang</span><span class="tr tb" id="kb-hsup">-</span></div>
+      <div class="row" style="margin-bottom:10px"><span class="row-label">Sisa Utang</span><span class="tr tb" id="kb-hsup">-</span></div>
       <div class="fg" style="margin-bottom:10px">
         <div><label>Nominal bayar (Rp)</label><input type="number" id="hs-nom" placeholder="0"></div>
         <div><label>Dari</label>
-          <select id="hs-dari"><option value="kas">Kas KBB</option><option value="bank">Bank Mandiri</option></select>
+          <select id="hs-dari"><option value="kas">Uang Kas</option><option value="bank">Bank Mandiri</option></select>
         </div>
       </div>
       <label>Tanggal</label><input type="date" id="hs-tgl">
       <button class="btn btn-primary" onclick="bayarSupplier()">💳 Bayar Supplier</button>
     </div>
 
-    <div class="sec" id="sec-piutang-owner" style="display:none">Ambil Piutang Owner</div>
+    <div class="sec" id="sec-piutang-owner" style="display:none">Ambil Uang Syarvi</div>
     <div class="card" id="card-piutang-owner" style="display:none">
-      <div class="row"><span class="row-label">Utang KBB ke lo</span><span class="tr tb" id="kb-utang-owner">Rp0</span></div>
+      <div class="row"><span class="row-label">Utang KBB ke Syarvi</span><span class="tr tb" id="kb-utang-owner">Rp0</span></div>
       <label style="margin-top:8px">Nominal yang mau diambil (Rp)</label>
       <input type="number" id="po-nom" placeholder="0">
       <button class="btn btn-primary" style="margin-top:8px" onclick="ambilPiutangOwner()">💰 Ambil Piutang</button>
     </div>
 
-    <div class="sec">Pengeluaran operasional</div>
+    <div class="sec">Pengeluaran Operasional</div>
     <div class="card">
       <div class="fg" style="margin-bottom:10px">
         <div><label>Jenis</label>
@@ -556,8 +557,8 @@
       <select id="j-filter" style="margin:0;width:110px" onchange="renderJurnal()">
         <option value="">Semua</option>
         <option value="produksi">Produksi</option>
-        <option value="visit">Visit</option>
-        <option value="closing">Closing</option>
+        <option value="visit">Ngampas</option>
+        <option value="closing">Tutup Buku</option>
         <option value="kas">Kas/Bank</option>
       </select>
     </div>
