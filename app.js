@@ -7,7 +7,7 @@ const MOTOR_NILAI = 6000000;
 let ROLE = null, USER = null;
 let ST = {
   kas:0,bank:0,stok_kal:0,gudang:0,piutang:0,hutang_sup:4320000,
-  dana_cad:0,modal:15000000,laba_akum:0,laba_u:0,
+  dana_cad:0,modal:18000000,laba_akum:0,laba_u:0,
   motor_bayar:0,motor_lunas:false,
   total_omzet:0,total_hpp:0,week_omzet:0,week_laba:0,setup:false,
   utang_owner:0,utang_upah:0
@@ -400,6 +400,69 @@ function renderOutlets(){
 }
 
 // ─── VISIT ────────────────────────────────────────────────
+// ─── VISIT TABS ───────────────────────────────────────────
+function switchVisitTab(tab){
+  el('tab-catat').style.display = tab==='catat'?'block':'none';
+  el('tab-riwayat').style.display = tab==='riwayat'?'block':'none';
+  el('tab-catat-btn').style.borderBottomColor = tab==='catat'?'var(--text)':'transparent';
+  el('tab-catat-btn').style.color = tab==='catat'?'var(--text)':'var(--text3)';
+  el('tab-catat-btn').style.fontWeight = tab==='catat'?'600':'500';
+  el('tab-riwayat-btn').style.borderBottomColor = tab==='riwayat'?'var(--text)':'transparent';
+  el('tab-riwayat-btn').style.color = tab==='riwayat'?'var(--text)':'var(--text3)';
+  el('tab-riwayat-btn').style.fontWeight = tab==='riwayat'?'600':'500';
+  if(tab==='riwayat') renderListVisit();
+}
+
+function searchKedai(){
+  const q=(v('v-search')||'').toLowerCase().trim();
+  const results=el('v-search-results');
+  if(!q){results.style.display='none';return;}
+  const filtered=OUTLETS.filter(o=>
+    o.nama.toLowerCase().includes(q)||(o.alamat||'').toLowerCase().includes(q)
+  ).slice(0,8);
+  if(!filtered.length){results.style.display='none';return;}
+  results.innerHTML=filtered.map(o=>{
+    const d=daysSince(o.last_visit);
+    const dotCls=d>=7?'dot-r':d>=5?'dot-a':'dot-g';
+    return`<div onclick="pilihKedaiDariSearch('${o.id}')" 
+      style="padding:10px 12px;cursor:pointer;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center"
+      onmouseover="this.style.background='var(--surface)'" onmouseout="this.style.background=''">
+      <div>
+        <div style="font-weight:500;font-size:13px">${o.nama}</div>
+        <div style="font-size:11px;color:var(--text3)">${o.alamat||'-'} · Stok: ${o.stok} bungkus</div>
+      </div>
+      <span class="dot ${dotCls}" style="flex-shrink:0"></span>
+    </div>`;
+  }).join('');
+  results.style.display='block';
+}
+
+function pilihKedaiDariSearch(id){
+  // Set outlet dropdown value
+  const sel=el('v-outlet');
+  // Find and set the option
+  let found=false;
+  for(let opt of sel.options){
+    if(opt.value===id){opt.selected=true;found=true;break;}
+  }
+  // If not in current dropdown, reload all outlets first
+  if(!found){
+    setv('v-area','');
+    renderVisitSelect();
+    setTimeout(()=>{
+      for(let opt of el('v-outlet').options){
+        if(opt.value===id){opt.selected=true;break;}
+      }
+      prevVisitOutlet();
+    },100);
+  } else {
+    prevVisitOutlet();
+  }
+  // Clear search
+  setv('v-search','');
+  el('v-search-results').style.display='none';
+}
+
 function renderAlarm(){
   const urgent=OUTLETS.filter(o=>daysSince(o.last_visit)>=7).sort((a,b)=>daysSince(b.last_visit)-daysSince(a.last_visit));
   const e=el('alarm-list');
@@ -455,6 +518,8 @@ function prevVisitOutlet(){
   setText('pvi-stok',o.stok+' bungkus');
   const d=daysSince(o.last_visit);
   setText('pvi-last',o.last_visit?o.last_visit+' ('+d+' hari lalu)':'Belum pernah');
+  setText('prev-v-nama',o.nama);
+  setText('prev-v-area',o.alamat||'-');
   if(info)info.style.display='block';
   calcVisit();
 }
@@ -545,9 +610,29 @@ async function hapusVisit(id,laku,omzet,laba,hpp,bayarKe,bayarNom,refill,sisa,ru
 }
 
 function renderListVisit(){
+  // Update riwayat filter dropdowns
+  const rvArea=el('rv-area');
+  const rvOutlet=el('rv-outlet');
+  if(rvArea&&rvArea.options.length<=1){
+    const areas=[...new Set(OUTLETS.map(o=>o.alamat||'').filter(a=>a))].sort();
+    rvArea.innerHTML='<option value="">Semua area</option>'+
+      areas.map(a=>`<option value="${a}">${a}</option>`).join('');
+  }
+  if(rvOutlet&&rvOutlet.options.length<=1){
+    rvOutlet.innerHTML='<option value="">Semua kedai</option>'+
+      OUTLETS.map(o=>`<option value="${o.id}">${o.nama}</option>`).join('');
+  }
+  const filterArea=v('rv-area')||'';
+  const filterOutlet=v('rv-outlet')||'';
+  let filteredVisits=VISITS;
+  if(filterArea) filteredVisits=filteredVisits.filter(vi=>{
+    const o=OUTLETS.find(o=>o.id===vi.outlet_id);
+    return o&&o.alamat===filterArea;
+  });
+  if(filterOutlet) filteredVisits=filteredVisits.filter(vi=>vi.outlet_id===filterOutlet);
   const e=el('list-visit');
-  if(!VISITS.length){e.innerHTML='<div class="empty">Belum ada visit</div>';return;}
-  e.innerHTML=VISITS.slice(0,15).map(v=>`
+  if(!filteredVisits.length){e.innerHTML='<div class="empty">Belum ada kunjungan</div>';return;}
+  e.innerHTML=filteredVisits.slice(0,30).map(v=>`
     <div class="card" style="margin-bottom:8px">
       <div class="row"><span class="row-label tb">${v.outlet_nama}</span><span style="color:var(--text3)">${v.tgl}</span></div>
       <div class="row"><span class="row-label">Laku</span><span class="tg tb">${v.laku} bungkus</span></div>
@@ -722,7 +807,7 @@ function toggleClosing(id){
 
 function renderListClosing(){
   const e=el('list-closing');
-  if(!CLOSING.length){e.innerHTML='<div class="empty">Belum ada closing</div>';return;}
+  if(!CLOSING.length){e.innerHTML='<div class="empty">Belum ada tutup buku</div>';return;}
   e.innerHTML=CLOSING.map((c,i)=>{
     const cid=c.id||('idx'+i);
     return`<div class="card" style="margin-bottom:8px">
@@ -937,6 +1022,8 @@ function renderJurnal(){
 // ─── RESET ────────────────────────────────────────────────
 async function resetData(){
   if(ROLE!=='owner'){toast('Hanya owner');return;}
+  const pwd=prompt('Masukkan password reset:');
+  if(pwd!=='8888'){toast('❌ Password salah!');return;}
   if(!confirm('⚠️ HAPUS SEMUA DATA?\n\nLanjut?'))return;
   if(!confirm('❗ YAKIN BANGET?\nTidak bisa dikembalikan.'))return;
   toast('Menghapus data...',5000);
@@ -947,7 +1034,7 @@ async function resetData(){
     await sb('DELETE','jurnal',null,'?id=neq.00000000-0000-0000-0000-000000000000');
     await sb('DELETE','produksi',null,'?id=neq.00000000-0000-0000-0000-000000000000');
     await sb('DELETE','outlets',null,'?id=neq.00000000-0000-0000-0000-000000000000');
-    await saveState({kas:0,bank:0,stok_kal:0,gudang:0,piutang:0,hutang_sup:4320000,dana_cad:0,modal:15000000,laba_akum:0,laba_u:0,motor_bayar:0,motor_lunas:false,total_omzet:0,total_hpp:0,week_omzet:0,week_laba:0,setup:false});
+    await saveState({kas:0,bank:0,stok_kal:0,gudang:0,piutang:0,hutang_sup:4320000,dana_cad:0,modal:18000000,laba_akum:0,laba_u:0,motor_bayar:0,motor_lunas:false,total_omzet:0,total_hpp:0,week_omzet:0,week_laba:0,setup:false});
     OUTLETS=[];PRODUKSI=[];VISITS=[];KASBON=[];CLOSING=[];JURNAL=[];
     toast('✅ Semua data berhasil dihapus!');renderAll();
   }catch(e){toast('Gagal: '+e.message);console.error(e);}
