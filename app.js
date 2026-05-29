@@ -129,19 +129,7 @@ function pinInput(val){
 }
 
 function setupNav(){
-  if(ROLE==='mitra'){
-    document.querySelectorAll('.nav-btn').forEach(b=>{
-      if(['Neraca','Closing','Jurnal'].includes(b.textContent.trim()))b.style.display='none';
-    });
-    const firstBtn=document.querySelector('.nav-btn:not([style*="none"])');
-    if(firstBtn){
-      document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
-      document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
-      const pageId=firstBtn.getAttribute('onclick').match(/gp\('(\w+)'/)[1];
-      el('page-'+pageId).classList.add('active');
-      firstBtn.classList.add('active');
-    }
-  }
+  // Semua tab visible untuk semua role
 }
 
 // ─── LOAD DATA ────────────────────────────────────────────
