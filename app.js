@@ -10,7 +10,7 @@ let ST = {
   dana_cad:0,modal:15000000,laba_akum:0,laba_u:0,
   motor_bayar:0,motor_lunas:false,
   total_omzet:0,total_hpp:0,week_omzet:0,week_laba:0,setup:false,
-  utang_owner:0
+  utang_owner:0,utang_upah:0
 };
 let OUTLETS=[],PRODUKSI=[],VISITS=[],KASBON=[],CLOSING=[],JURNAL=[];
 
@@ -185,6 +185,12 @@ function renderNeraca(){
   setk('k3',needVisit===0,'Semua oke',needVisit+' outlet');
   setk('k4',ST.laba_u>=0,'Ada laba','Merugi');
   if(ST.setup){const ss=el('setup-section');if(ss)ss.style.display='none';}
+  // Utang upah
+  const utangUpah=ST.utang_upah||0;
+  const nuu=el('n-utang-upah');
+  if(nuu)nuu.textContent=idr(utangUpah,true);
+  const rowuu=el('row-utang-upah');
+  if(rowuu)rowuu.style.display=utangUpah>0?'flex':'none';
   // Utang owner
   const utangOwner=ST.utang_owner||0;
   const nuo=el('n-utang-owner');
@@ -239,39 +245,82 @@ async function simpanProduksi(){
     plastik=+v('pr-plastik')||45,tgl=v('pr-tgl');
   if(!kal||!bungkus){toast('Isi kaleng dan hasil bungkus');return;}
   if(ST.stok_kal<kal){toast('Stok kaleng kurang! (ada: '+ST.stok_kal+')');return;}
-  const hpp=Math.round((kal*hkal)/bungkus)+upah+plastik;
-  const totKas=(upah+plastik)*bungkus;
-  if(ST.kas<totKas){toast('Kas tidak cukup! Butuh: '+idr(totKas));return;}
-  const row={kal,hkal,bungkus,upah,plastik,hpp,tot_kas:totKas,tgl};
+  const hppKacang=Math.round((kal*hkal)/bungkus);
+  const hppEstimasi=hppKacang+upah+plastik;
+  const totUpah=upah*bungkus;
+  // Catat utang upah ke neraca
+  const row={kal,hkal,bungkus,upah,plastik,hpp:hppEstimasi,tot_kas:0,tgl,upah_lunas:false};
   const res=await sb('POST','produksi',row);
   if(res&&res.length)PRODUKSI.unshift(res[0]);else PRODUKSI.unshift(row);
-  await saveState({stok_kal:ST.stok_kal-kal,gudang:ST.gudang+bungkus,kas:ST.kas-totKas});
-  await addJurnal('produksi',`Produksi ${bungkus} bungkus dari ${kal} kaleng | HPP ${idr(hpp)}/bungkus`,tgl);
+  // Update stok kaleng & gudang, tambah utang upah
+  await saveState({
+    stok_kal:ST.stok_kal-kal,
+    gudang:ST.gudang+bungkus,
+    utang_upah:(ST.utang_upah||0)+totUpah
+  });
+  await addJurnal('produksi',`Produksi ${bungkus} bungkus dari ${kal} kaleng | HPP estimasi ${idr(hppEstimasi)}/bungkus | Upah belum dibayar ${idr(totUpah)}`,tgl);
   setv('pr-kal','');setv('pr-bungkus','');
   el('prev-prod').classList.remove('show');
-  toast('✅ Produksi dicatat! '+bungkus+' bungkus masuk gudang');renderAll();
+  toast('✅ Produksi dicatat! '+bungkus+' bungkus masuk gudang. Upah: '+idr(totUpah)+' (belum dibayar)');
+  renderAll();
 }
 
-async function hapusProduksi(id,kal,bungkus,totKas){
+async function hapusProduksi(id,kal,bungkus,upah,upahLunas){
   if(!confirm('Hapus data produksi ini?'))return;
+  const p=PRODUKSI.find(p=>p.id===id);
   await sb('DELETE','produksi',null,'?id=eq.'+id);
   PRODUKSI=PRODUKSI.filter(p=>p.id!==id);
-  await saveState({stok_kal:ST.stok_kal+kal,gudang:Math.max(0,ST.gudang-bungkus),kas:ST.kas+totKas});
+  const totUpah=(upah||0)*bungkus;
+  const patch={stok_kal:ST.stok_kal+kal,gudang:Math.max(0,ST.gudang-bungkus)};
+  // Kalau upah belum dibayar, kurangi utang upah
+  if(!upahLunas)patch.utang_upah=Math.max(0,(ST.utang_upah||0)-totUpah);
+  await saveState(patch);
   toast('✅ Data produksi dihapus');renderAll();
+}
+
+async function bayarUpah(id,bungkus,upahPerBungkus){
+  if(ROLE!=='owner'){toast('Hanya owner');return;}
+  const totUpah=upahPerBungkus*bungkus;
+  if(!confirm('Bayar upah packing '+idr(totUpah)+'?\nKas akan berkurang '+idr(totUpah)))return;
+  const patch={};
+  if(ST.kas>=totUpah){
+    patch.kas=ST.kas-totUpah;
+    patch.utang_upah=Math.max(0,(ST.utang_upah||0)-totUpah);
+  } else {
+    const kurang=totUpah-ST.kas;
+    const tambal=confirm(
+      'Kas tidak cukup!\nKas: '+idr(ST.kas)+'\nKurang: '+idr(kurang)+
+      '\n\nTambal dari uang pribadi lo?\n(KBB catat utang ke owner: '+idr(kurang)+')'
+    );
+    if(!tambal)return;
+    patch.kas=0;
+    patch.utang_owner=(ST.utang_owner||0)+kurang;
+    patch.utang_upah=Math.max(0,(ST.utang_upah||0)-totUpah);
+  }
+  await sb('PATCH','produksi',{upah_lunas:true},'?id=eq.'+id);
+  const p=PRODUKSI.find(p=>p.id===id);if(p)p.upah_lunas=true;
+  await saveState(patch);
+  await addJurnal('kas',`Bayar upah packing ${bungkus} bungkus: ${idr(totUpah)}`);
+  toast('✅ Upah dibayar: '+idr(totUpah));renderAll();
 }
 
 function renderListProd(){
   const e=el('list-prod');
   if(!PRODUKSI.length){e.innerHTML='<div class="empty">Belum ada produksi</div>';return;}
-  e.innerHTML=PRODUKSI.slice(0,10).map(p=>`
-    <div class="card" style="margin-bottom:8px">
+  e.innerHTML=PRODUKSI.slice(0,10).map(p=>{
+    const totUpah=(p.upah||0)*p.bungkus;
+    return`<div class="card" style="margin-bottom:8px">
       <div class="row"><span class="row-label">Tanggal</span><span>${p.tgl}</span></div>
       <div class="row"><span class="row-label">Input → Output</span><span>${p.kal} kaleng → ${p.bungkus} bungkus</span></div>
-      <div class="row"><span class="row-label">Kas keluar</span><span class="tr">${idr(p.tot_kas)}</span></div>
-      <div class="row"><span class="row-label">HPP real/bungkus</span><span class="tr">${idr(p.hpp)}</span></div>
-      <div class="row"><span class="row-label">Margin/bungkus</span><span class="tg">${idr(HARGA_JUAL-p.hpp)}</span></div>
-      ${ROLE==='owner'?`<button class="btn btn-danger btn-sm" style="margin-top:6px" onclick="hapusProduksi('${p.id}',${p.kal},${p.bungkus},${p.tot_kas})">🗑 Hapus</button>`:''}
-    </div>`).join('');
+      <div class="row"><span class="row-label">HPP estimasi/bungkus</span><span class="tr">${idr(p.hpp)}</span></div>
+      <div class="row"><span class="row-label">Margin estimasi</span><span class="tg">${idr(HARGA_JUAL-p.hpp)}</span></div>
+      <div class="row"><span class="row-label">Upah packing</span>
+        <span class="${p.upah_lunas?'tg':'tr'}">${idr(totUpah)} — ${p.upah_lunas?'✅ Sudah dibayar':'⏳ Belum dibayar'}</span>
+      </div>
+      ${ROLE==='owner'&&!p.upah_lunas?`<button class="btn btn-primary btn-sm" style="margin-top:6px;margin-right:6px" onclick="bayarUpah('${p.id}',${p.bungkus},${p.upah||0})">💰 Bayar Upah</button>`:''}
+      ${ROLE==='owner'?`<button class="btn btn-danger btn-sm" style="margin-top:6px" onclick="hapusProduksi('${p.id}',${p.kal},${p.bungkus},${p.upah||0},${p.upah_lunas?'true':'false'})">🗑 Hapus</button>`:''}
+    </div>`;
+  }).join('');
 }
 
 // ─── OUTLET ───────────────────────────────────────────────
@@ -749,19 +798,29 @@ async function bayarSupplier(){
 
 async function simpanOps(){
   if(ROLE!=='owner'){toast('Hanya owner');return;}
-  const nom=+v('op-nom'),dari=v('op-dari'),ket=v('op-ket'),tgl=v('op-tgl'),jenis=v('op-jenis');
+  const nom=+v('op-nom'),ket=v('op-ket'),tgl=v('op-tgl'),jenis=v('op-jenis');
   if(!nom){toast('Isi nominal');return;}
-  if(dari==='cad'&&ST.dana_cad<nom){toast('Dana cadangan tidak cukup');return;}
-  if(dari==='kas'&&ST.kas<nom){toast('Kas tidak cukup');return;}
-  if(dari==='bank'&&ST.bank<nom){toast('Saldo bank tidak cukup');return;}
   const patch={};
-  if(dari==='cad')patch.dana_cad=ST.dana_cad-nom;
-  else if(dari==='kas')patch.kas=ST.kas-nom;
-  else patch.bank=ST.bank-nom;
-  await saveState(patch);
-  await addJurnal('kas',`${jenis}: ${ket||'-'} | ${idr(nom,true)} dari ${dari}`,tgl);
-  setv('op-nom','');setv('op-ket','');
-  toast('✅ Pengeluaran dicatat!');renderAll();
+  if(ST.kas>=nom){
+    patch.kas=ST.kas-nom;
+    await saveState(patch);
+    await addJurnal('kas',`${jenis}: ${ket||'-'} | ${idr(nom,true)}`,tgl);
+    setv('op-nom','');setv('op-ket','');
+    toast('✅ Pengeluaran dicatat!');renderAll();
+  } else {
+    const kurang=nom-ST.kas;
+    const tambal=confirm(
+      'Kas tidak cukup!\nKas: '+idr(ST.kas)+'\nKurang: '+idr(kurang)+
+      '\n\nTambal dari uang pribadi lo?\n(KBB catat utang ke owner: '+idr(kurang)+')'
+    );
+    if(!tambal)return;
+    patch.kas=0;
+    patch.utang_owner=(ST.utang_owner||0)+kurang;
+    await saveState(patch);
+    await addJurnal('kas',`${jenis}: ${ket||'-'} | ${idr(nom,true)} (pribadi: ${idr(kurang,true)})`,tgl);
+    setv('op-nom','');setv('op-ket','');
+    toast('✅ Pengeluaran dicatat! KBB utang ke lo: '+idr(kurang));renderAll();
+  }
 }
 
 // ─── PIUTANG OWNER ────────────────────────────────────────
@@ -784,19 +843,23 @@ async function ambilPiutangOwner(){
 async function simpanKasbon(){
   const nom=+v('kb-nom'),ket=v('kb-ket'),tgl=v('kb-tgl');
   if(!nom){toast('Isi nominal');return;}
-  const row={nom,ket:ket||'Kasbon',tgl,lunas:false};
-  const res=await sb('POST','kasbon',row);
-  if(res&&res.length)KASBON.unshift(res[0]);else KASBON.unshift(row);
+  // Tambah ke kasbon aktif yang ada, atau buat baru kalau belum ada
+  const aktif=KASBON.find(k=>!k.lunas);
+  if(aktif){
+    const newNom=aktif.nom+nom;
+    await sb('PATCH','kasbon',{nom:newNom},'?id=eq.'+aktif.id);
+    aktif.nom=newNom;
+  } else {
+    const row={nom,ket:'Kasbon Ilham',tgl,lunas:false};
+    const res=await sb('POST','kasbon',row);
+    if(res&&res.length)KASBON.unshift(res[0]);else KASBON.unshift(row);
+  }
+  // Catat riwayat di jurnal
   await addJurnal('kas',`Kasbon Ilham: ${ket||'-'} ${idr(nom,true)}`,tgl);
   setv('kb-nom','');setv('kb-ket','');
   closeModal('modal-kasbon');
-  toast('✅ Kasbon dicatat');renderAll();
-}
-
-async function lunasKasbon(id){
-  await sb('PATCH','kasbon',{lunas:true},'?id=eq.'+id);
-  const k=KASBON.find(k=>k.id===id);if(k)k.lunas=true;
-  toast('✅ Kasbon dilunasi');renderAll();
+  toast('✅ Kasbon +'+idr(nom,true)+' | Total: '+idr(kasbonAktif()+nom));
+  renderAll();
 }
 
 async function hapusKasbon(id){
@@ -807,22 +870,26 @@ async function hapusKasbon(id){
 }
 
 function renderKasbonList(){
-  setText('kb-kasbon-tot',idr(kasbonAktif()));
-  setText('cl-kasbon',idr(kasbonAktif()));
+  const total=kasbonAktif();
+  setText('kb-kasbon-tot',idr(total));
+  setText('cl-kasbon',idr(total));
   const e=el('list-kasbon');
-  if(!KASBON.length){e.innerHTML='<div class="empty">Belum ada kasbon</div>';return;}
-  e.innerHTML=KASBON.map(k=>`
-    <div class="kb-item">
-      <div>
-        <div style="font-weight:500;font-size:13px">${k.ket}</div>
-        <div style="font-size:11px;color:var(--text3)">${k.tgl}</div>
-      </div>
-      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end">
-        <span class="badge ${k.lunas?'badge-green':'badge-red'}">${k.lunas?'Lunas':idr(k.nom,true)}</span>
-        ${!k.lunas?`<button class="btn btn-sm" onclick="lunasKasbon('${k.id}')">✅</button>`:''}
-        ${ROLE==='owner'?`<button class="btn btn-danger btn-sm" onclick="hapusKasbon('${k.id}')">🗑</button>`:''}
-      </div>
-    </div>`).join('');
+
+  // Riwayat kasbon dari jurnal
+  const riwayat=JURNAL.filter(j=>j.tipe==='kas'&&j.keterangan&&j.keterangan.includes('Kasbon Ilham'));
+
+  e.innerHTML=`
+    <div class="card" style="margin-bottom:8px">
+      <div class="row"><span class="row-label tb">Total kasbon aktif</span><span class="tr tb">${idr(total)}</span></div>
+      ${total>0?`
+      <div style="border-top:1px solid var(--border);margin:8px 0;font-size:12px;color:var(--text3)">Riwayat pengambilan:</div>
+      ${riwayat.slice(0,10).map(j=>`
+        <div class="row" style="font-size:12px">
+          <span style="color:var(--text2)">${j.keterangan.replace('Kasbon Ilham: ','')}</span>
+          <span style="color:var(--text3)">${j.tgl}</span>
+        </div>`).join('')}
+      `:'<div style="font-size:12px;color:var(--text3);margin-top:4px">Tidak ada kasbon aktif</div>'}
+    </div>`;
 }
 
 // ─── JURNAL ───────────────────────────────────────────────
