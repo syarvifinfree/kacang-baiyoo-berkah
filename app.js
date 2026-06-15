@@ -43,7 +43,7 @@ function el(id){return document.getElementById(id);}
 function setText(id,txt){const e=el(id);if(e)e.textContent=txt;}
 function setDates(){
   const t=today();
-  ['pr-tgl','v-tgl','sup-tgl','hs-tgl','op-tgl','kb-tgl','no-tgl'].forEach(id=>{
+  ['pr-tgl','v-tgl','sup-tgl','hs-tgl','op-tgl','kb-tgl','no-tgl','sk-tgl'].forEach(id=>{
     const e=el(id);if(e&&!e.value)e.value=t;
   });
 }
@@ -959,6 +959,20 @@ async function ambilPiutangOwner(){
   await addJurnal('kas',`Owner ambil piutang ${idr(nom,true)} dari kas`);
   setv('po-nom','');
   toast('✅ Piutang owner diambil: '+idr(nom));renderAll();
+}
+
+// ─── SETOR KAS ────────────────────────────────────────────
+async function setorKas(){
+  if(ROLE!=='owner'){toast('Hanya owner');return;}
+  const nom=+v('sk-nom'),ket=v('sk-ket'),tgl=v('sk-tgl');
+  if(!nom){toast('Isi nominal');return;}
+  if(!ket.trim()){toast('Isi keterangan');return;}
+  if(!confirm('Setor kas '+idr(nom)+'?\nKeterangan: '+ket+'\n\nLanjut?'))return;
+  await saveState({kas:ST.kas+nom});
+  await addJurnal('kas',`Setor kas: ${ket} | +${idr(nom,true)}`,tgl);
+  setv('sk-nom','');setv('sk-ket','');
+  closeModal('modal-setor-kas');
+  toast('✅ Kas +'+idr(nom,true));renderAll();
 }
 
 // ─── KASBON ───────────────────────────────────────────────
