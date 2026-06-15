@@ -552,6 +552,13 @@
       <div class="met"><div class="met-label">🏦 Bank Mandiri</div><div class="met-val" id="kb-bank">-</div></div>
     </div>
 
+    <div class="sec">Setor Kas</div>
+    <div class="card">
+      <div class="alert alert-info" style="margin-bottom:10px">💡 Gunakan ini untuk memasukkan uang KBB ke kas — misalnya dari omzet lama yang dipegang di luar app.</div>
+      <label>Nominal (Rp)</label><input type="number" id="sk-nom-display" placeholder="0" readonly onclick="openModal('modal-setor-kas')" style="cursor:pointer">
+      <button class="btn btn-primary" onclick="openModal('modal-setor-kas')">+ Setor Kas</button>
+    </div>
+
     <div class="sec">Beli Kacang</div>
     <div class="card">
       <div class="fg" style="margin-bottom:10px">
@@ -647,6 +654,21 @@
     <div class="btn-row">
       <button class="btn" onclick="closeModal('modal-outlet')">Batal</button>
       <button class="btn btn-primary" onclick="simpanOutlet()">✅ Simpan</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: SETOR KAS -->
+<div class="modal-overlay" id="modal-setor-kas" onclick="closeModalOut(event,'modal-setor-kas')">
+  <div class="modal">
+    <div class="modal-title">💵 Setor Kas</div>
+    <div class="alert alert-info" style="margin-bottom:12px">Uang KBB yang dipegang di luar app, dimasukkan ke kas.</div>
+    <label>Nominal (Rp)</label><input type="number" id="sk-nom" placeholder="0">
+    <label>Keterangan</label><input type="text" id="sk-ket" placeholder="cth: sisa omzet minggu lalu">
+    <label>Tanggal</label><input type="date" id="sk-tgl">
+    <div class="btn-row">
+      <button class="btn" onclick="closeModal('modal-setor-kas')">Batal</button>
+      <button class="btn btn-primary" onclick="setorKas()">✅ Setor</button>
     </div>
   </div>
 </div>
