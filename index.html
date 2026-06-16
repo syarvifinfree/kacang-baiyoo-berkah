@@ -682,6 +682,9 @@
       <div class="row" style="margin:4px 0 0"><span style="font-size:12px;color:var(--text3)">Omzet</span><span style="font-weight:600" id="mv-omzet">-</span></div>
       <div class="row" style="margin:4px 0 0"><span style="font-size:12px;color:var(--text3)">Tunai masuk</span><span style="color:#34C759" id="mv-tunai-preview">-</span></div>
       <div class="row" style="margin:4px 0 0"><span style="font-size:12px;color:var(--text3)">Bon baru</span><span style="color:#FF3B30" id="mv-bon-preview">-</span></div>
+      <div style="border-top:1px solid #c8e6c9;margin:6px 0"></div>
+      <div class="row" style="margin:0"><span style="font-size:12px;color:var(--text3)">Stok kedai jadi</span><span style="font-weight:600" id="mv-stok-baru">-</span></div>
+      <div class="row" id="mv-balik-row" style="margin:4px 0 0;display:none"><span style="font-size:12px;color:var(--text3)">↩️ Balik ke gudang</span><span style="color:#2563eb" id="mv-balik">-</span></div>
     </div>
 
     <!-- Bayar tunai -->
@@ -724,7 +727,7 @@
       <button onclick="cekDoangModal()" class="btn" style="flex:1;padding:14px 8px;font-size:14px">
         📍 Cek
       </button>
-      <button onclick="simpanModalVisit()" class="btn btn-primary" style="flex:2;padding:14px;font-size:15px;font-weight:700">
+      <button id="mv-btn-simpan" onclick="simpanModalVisit()" class="btn btn-primary" style="flex:2;padding:14px;font-size:15px;font-weight:700">
         ✅ Simpan
       </button>
     </div>
