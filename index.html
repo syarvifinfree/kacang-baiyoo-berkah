@@ -248,7 +248,7 @@
       <div class="met"><div class="met-label">📦 Stok kaleng</div><div class="met-val" id="n-kal">-</div><div class="met-sub">kaleng</div></div>
       <div class="met"><div class="met-label">🛍 Stok Gudang</div><div class="met-val" id="n-gudang">-</div><div class="met-sub">bungkus (Ilham)</div></div>
       <div class="met"><div class="met-label">🏪 Kacang di Kedai</div><div class="met-val" id="n-outlet-stok">-</div><div class="met-sub">kacang di kedai</div></div>
-      <div class="met"><div class="met-label">📋 Bon Belum Lunas</div><div class="met-val tr" id="n-piutang">-</div><div class="met-sub">bon belum lunas</div></div>
+      <div class="met" onclick="openModal('modal-daftar-bon');renderDaftarBon()" style="cursor:pointer"><div class="met-label">📋 Bon Belum Lunas</div><div class="met-val tr" id="n-piutang">-</div><div class="met-sub" style="color:var(--blue)">tap untuk lihat daftar</div></div>
     </div>
     <div class="card">
       <div class="row"><span class="row-label">Utang Supplier</span><span class="tr" id="n-hsup">-</span></div>
@@ -354,86 +354,54 @@
 
   <!-- TAB CATAT -->
   <div id="tab-catat">
-    <div class="alert alert-info" style="margin-top:8px">ℹ️ Sisa di warung otomatis balik ke stok Ilham. Laku = pemasukan & laba.</div>
-    
-    <div class="card">
-      <!-- Search -->
-      <label>🔍 Cari nama kedai</label>
-      <input type="text" id="v-search" placeholder="Ketik nama kedai..." oninput="searchKedai()" autocomplete="off" style="margin-bottom:6px">
-      <div id="v-search-results" style="display:none;border:1px solid var(--border);border-radius:8px;max-height:200px;overflow-y:auto;margin-bottom:8px"></div>
-      
-      <div style="text-align:center;color:var(--text3);font-size:12px;margin:4px 0">— atau pilih dari area —</div>
-      
-      <label>Pilih area</label>
-      <select id="v-area" onchange="filterOutletByArea()" style="margin-bottom:8px">
-        <option value="">-- semua area --</option>
-      </select>
-      <label>Pilih kedai</label>
-      <select id="v-outlet" onchange="prevVisitOutlet()">
-        <option value="">-- pilih kedai --</option>
-      </select>
+
+  <!-- SECTION: PILIH RUTE -->
+  <div id="section-pilih-rute">
+    <div style="padding:12px 0 6px">
+      <div style="font-size:18px;font-weight:700;color:var(--text)">Ngampas Hari Ini</div>
+      <div style="font-size:12px;color:var(--text3);margin-top:2px">Pilih rute untuk mulai</div>
     </div>
+    <div id="rute-list"></div>
 
-    <div id="prev-v-info" style="display:none" class="card">
-      <div class="row"><span class="row-label tb" id="prev-v-nama">-</span><span class="badge badge-gray" id="prev-v-area">-</span></div>
-      <div class="row"><span class="row-label">Stok sekarang</span><span class="tb tg" id="pvi-stok">-</span></div>
-      <div class="row"><span class="row-label">Kunjungan terakhir</span><span id="pvi-last">-</span></div>
-    </div>
-
-    <div class="card">
-      <div class="fg">
-        <div>
-          <label>Sisa di warung</label>
-          <input type="number" id="v-sisa" placeholder="cth: 5" oninput="calcVisit()">
-        </div>
-        <div>
-          <label>Isi Ulang (bungkus)</label>
-          <input type="number" id="v-refill" placeholder="cth: 25" oninput="calcVisit()">
-          <div id="refill-warning" style="display:none;font-size:11px;color:var(--red);margin-top:4px">⚠️ Stok Ilham kosong!</div>
-        </div>
-      </div>
-      <div class="fg" style="margin-top:8px">
-        <div>
-          <label>Bungkus rusak</label>
-          <input type="number" id="v-rusak" placeholder="0" value="0" oninput="calcVisit()">
-        </div>
-        <div>
-          <label>Tanggal visit</label>
-          <input type="date" id="v-tgl">
-        </div>
-      </div>
-
-      <div class="preview" id="prev-visit">
-        <div class="row"><span class="row-label">Laku</span><span class="tg tb" id="pv-laku">-</span></div>
-        <div class="row"><span class="row-label">Pemasukan</span><span class="tg" id="pv-omzet">-</span></div>
-        <div class="row"><span class="row-label">Laba</span><span class="tg" id="pv-laba">-</span></div>
-        <div class="row"><span class="row-label">Balik ke gudang</span><span id="pv-retur">-</span></div>
-        <div class="row"><span class="row-label">Stok baru di kedai</span><span id="pv-stok-baru">-</span></div>
-      </div>
-
-      <div class="fg" style="margin-top:8px">
-        <div>
-          <label>Pembayaran ke</label>
-          <select id="v-bayar-ke">
-            <option value="kas">Kas KBB</option>
-            <option value="bank">Bank Mandiri</option>
-            <option value="bon">Bon (belum bayar)</option>
-          </select>
-        </div>
-        <div>
-          <label>Nominal bayar (Rp)</label>
-          <input type="number" id="v-bayar-nom" placeholder="0">
-        </div>
-      </div>
-    </div>
-
-    <button class="btn btn-primary" style="width:100%" onclick="simpanVisit()">✅ Catat Kunjungan</button>
-
-    <div class="sec" style="margin-top:16px">⚠️ Kedai Belum Dikunjungi</div>
+    <div class="sec" style="margin-top:8px">⚠️ Kedai Belum Dikunjungi</div>
     <div id="alarm-list"><div class="loading">Memuat...</div></div>
+    <div id="alarm-more" style="display:none;text-align:center;margin-top:8px">
+      <button class="btn btn-sm" onclick="showAllAlarm()">Lihat semua</button>
+    </div>
   </div>
 
-  <!-- TAB RIWAYAT -->
+  <!-- SECTION: MODE RUTE AKTIF -->
+  <div id="section-mode-rute" style="display:none">
+    <!-- Header rute -->
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 0 8px">
+      <button onclick="backToPilihRute()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text);padding:0">‹</button>
+      <div style="flex:1">
+        <div style="font-size:16px;font-weight:700" id="rute-aktif-label">Rute 1</div>
+        <div style="font-size:12px;color:var(--text3)" id="rute-progress">0/0 dikunjungi</div>
+      </div>
+    </div>
+    <!-- Progress bar -->
+    <div style="background:var(--border);border-radius:99px;height:4px;margin-bottom:12px">
+      <div id="rute-progress-bar" style="background:#34C759;height:4px;border-radius:99px;width:0%;transition:width 0.3s"></div>
+    </div>
+    <!-- Search kedai di rute ini -->
+    <div style="position:relative;margin-bottom:10px">
+      <input type="text" id="rute-search" placeholder="🔍 Cari nama kedai..." 
+        oninput="searchRute()" autocomplete="off"
+        style="width:100%;box-sizing:border-box;padding:10px 14px;border:1.5px solid var(--border);
+        border-radius:10px;font-size:14px;background:var(--bg)">
+    </div>
+
+    <!-- Summary tunai hari ini -->
+    <div id="rute-summary" style="display:none;background:#f0faf0;border-radius:10px;
+      padding:10px 14px;margin-bottom:10px;border:1px solid #c8e6c9">
+    </div>
+
+    <!-- List kedai -->
+    <div id="list-kedai-rute"></div>
+  </div>
+
+<!-- TAB RIWAYAT -->
   <div id="tab-riwayat" style="display:none">
     <div class="card" style="margin-top:8px">
       <div class="fg">
@@ -670,6 +638,124 @@
       <button class="btn" onclick="closeModal('modal-setor-kas')">Batal</button>
       <button class="btn btn-primary" onclick="setorKas()">✅ Setor</button>
     </div>
+  </div>
+</div>
+
+<!-- MODAL: VISIT KEDAI -->
+<div class="modal-overlay" id="modal-visit" onclick="closeModalOut(event,'modal-visit')">
+  <div class="modal" style="border-radius:20px 20px 0 0;padding:20px 16px 32px">
+
+    <!-- Header kedai -->
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px">
+      <div>
+        <div style="font-size:16px;font-weight:700" id="mv-nama">-</div>
+        <div style="font-size:12px;color:var(--text3)" id="mv-area">-</div>
+      </div>
+      <button onclick="closeModal('modal-visit')" style="background:none;border:none;font-size:22px;color:var(--text3);cursor:pointer;padding:0">✕</button>
+    </div>
+
+    <!-- Info kedai -->
+    <div style="background:var(--bg2,#f5f5f5);border-radius:10px;padding:10px 12px;margin-bottom:14px">
+      <div class="row" style="margin:0"><span style="font-size:12px;color:var(--text3)">Stok sekarang</span><span style="font-size:13px;font-weight:600;color:#34C759" id="mv-stok">-</span></div>
+      <div class="row" style="margin:4px 0 0"><span style="font-size:12px;color:var(--text3)">Kunjungan terakhir</span><span style="font-size:12px;color:var(--text3)" id="mv-last">-</span></div>
+      <div class="row" id="mv-bon-row" style="margin:4px 0 0;display:none"><span style="font-size:12px;color:#FF3B30;font-weight:600">⚠️ Bon belum lunas</span><span style="font-size:13px;font-weight:700;color:#FF3B30" id="mv-bon">-</span></div>
+    </div>
+
+    <!-- Input utama: Sisa & Refill -->
+    <div style="display:flex;gap:10px;margin-bottom:10px">
+      <div style="flex:1">
+        <label style="font-size:11px;color:var(--text3);font-weight:600">SISA DI WARUNG</label>
+        <input type="number" id="mv-sisa" placeholder="0" oninput="calcModalVisit()"
+          style="font-size:22px;font-weight:700;text-align:center;border:2px solid var(--border);border-radius:10px;padding:10px;width:100%;box-sizing:border-box;margin-top:4px">
+      </div>
+      <div style="flex:1">
+        <label style="font-size:11px;color:var(--text3);font-weight:600">ISI ULANG</label>
+        <input type="number" id="mv-refill" placeholder="0" oninput="calcModalVisit()"
+          style="font-size:22px;font-weight:700;text-align:center;border:2px solid var(--border);border-radius:10px;padding:10px;width:100%;box-sizing:border-box;margin-top:4px">
+      </div>
+    </div>
+
+    <!-- Preview hasil -->
+    <div id="mv-preview" style="display:none;background:#f0faf0;border-radius:10px;padding:10px 12px;margin-bottom:10px">
+      <div class="row" style="margin:0"><span style="font-size:12px;color:var(--text3)">Laku</span><span style="font-weight:700;color:#34C759" id="mv-laku">-</span></div>
+      <div class="row" style="margin:4px 0 0"><span style="font-size:12px;color:var(--text3)">Omzet</span><span style="font-weight:600" id="mv-omzet">-</span></div>
+      <div class="row" style="margin:4px 0 0"><span style="font-size:12px;color:var(--text3)">Tunai masuk</span><span style="color:#34C759" id="mv-tunai-preview">-</span></div>
+      <div class="row" style="margin:4px 0 0"><span style="font-size:12px;color:var(--text3)">Bon baru</span><span style="color:#FF3B30" id="mv-bon-preview">-</span></div>
+    </div>
+
+    <!-- Bayar tunai -->
+    <div style="margin-bottom:10px">
+      <label style="font-size:11px;color:var(--text3);font-weight:600">BAYAR TUNAI (Rp)</label>
+      <input type="number" id="mv-tunai" placeholder="0" oninput="calcModalVisit()"
+        style="border:2px solid var(--border);border-radius:10px;padding:10px 12px;width:100%;box-sizing:border-box;margin-top:4px;font-size:15px">
+      <div style="font-size:11px;color:var(--text3);margin-top:3px">Sisa otomatis jadi bon</div>
+    </div>
+
+    <!-- Bayar bon lama (hidden kalau tidak ada bon) -->
+    <div id="mv-bayar-bon-lama-row" style="display:none;margin-bottom:10px">
+      <label style="font-size:11px;color:#FF3B30;font-weight:600">BAYAR BON LAMA (Rp)</label>
+      <input type="number" id="mv-bon-lama" placeholder="0" oninput="calcModalVisit()"
+        style="border:2px solid #FF3B30;border-radius:10px;padding:10px 12px;width:100%;box-sizing:border-box;margin-top:4px;font-size:15px">
+    </div>
+
+    <!-- Rusak & Tanggal (collapsed) -->
+    <details style="margin-bottom:12px">
+      <summary style="font-size:12px;color:var(--text3);cursor:pointer">Lainnya (rusak, tanggal)</summary>
+      <div style="margin-top:8px;display:flex;gap:10px">
+        <div style="flex:1">
+          <label style="font-size:11px;color:var(--text3)">Bungkus rusak</label>
+          <input type="number" id="mv-rusak" placeholder="0" value="0" oninput="calcModalVisit()"
+            style="border:1px solid var(--border);border-radius:8px;padding:8px;width:100%;box-sizing:border-box;margin-top:4px">
+        </div>
+        <div style="flex:1">
+          <label style="font-size:11px;color:var(--text3)">Tanggal</label>
+          <input type="date" id="mv-tgl"
+            style="border:1px solid var(--border);border-radius:8px;padding:8px;width:100%;box-sizing:border-box;margin-top:4px">
+        </div>
+      </div>
+    </details>
+
+    <!-- Tombol aksi -->
+    <div style="display:flex;gap:8px">
+      <button onclick="cekDoangModal()" class="btn" style="flex:0 0 auto;padding:12px 16px;font-size:13px">
+        📍 Cek Doang
+      </button>
+      <button onclick="simpanModalVisit()" class="btn btn-primary" style="flex:1;padding:14px;font-size:15px;font-weight:700">
+        ✅ Simpan
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<!-- MODAL: LUNASI BON -->
+<div class="modal-overlay" id="modal-lunasi-bon" onclick="closeModalOut(event,'modal-lunasi-bon')">
+  <div class="modal">
+    <div class="modal-title">💵 Lunasi Bon</div>
+    <div class="row" style="margin-bottom:12px">
+      <span class="tb" id="lunasi-nama">-</span>
+      <span class="tr tb" id="lunasi-ada">-</span>
+    </div>
+    <label>Nominal bayar (Rp)</label>
+    <input type="number" id="lunasi-nom" placeholder="0">
+    <div style="font-size:11px;color:var(--text3);margin-top:4px">Kas tersedia: akan dikurangi</div>
+    <div class="btn-row" style="margin-top:16px">
+      <button class="btn" onclick="closeModal('modal-lunasi-bon')">Batal</button>
+      <button class="btn btn-primary" onclick="konfirmasiLunasi()">✅ Lunasi</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: DAFTAR BON -->
+<div class="modal-overlay" id="modal-daftar-bon" onclick="closeModalOut(event,'modal-daftar-bon')">
+  <div class="modal">
+    <div class="modal-title">📋 Daftar Bon Belum Lunas</div>
+    <div id="list-daftar-bon"><div class="loading">Memuat...</div></div>
+    <div class="row" style="margin-top:12px;border-top:0.5px solid var(--border);padding-top:8px">
+      <span class="tb">Total</span>
+      <span class="tr tb" id="total-daftar-bon">-</span>
+    </div>
+    <button class="btn" style="margin-top:12px;width:100%" onclick="closeModal('modal-daftar-bon')">Tutup</button>
   </div>
 </div>
 
