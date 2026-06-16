@@ -373,14 +373,35 @@ async function hapusOutlet(id,nama){
   toast('✅ Kedai dihapus');renderAll();
 }
 
-async function editOutletStok(id,nama,stokLama){
-  const stokBaru=prompt(`Edit stok "${nama}" (sekarang: ${stokLama} bungkus):`);
+async function tambahStokKedai(id,nama,stokSekarang){
+  const tambahStr=prompt(`➕ TAMBAH STOK "${nama}" (sekarang: ${stokSekarang} bungkus)\n\nBerapa bungkus dinitip dari gudang?\n(Stok gudang Ilham: ${ST.gudang} bungkus)`);
+  if(tambahStr===null)return;
+  const tambah=parseInt(tambahStr);
+  if(isNaN(tambah)||tambah<=0){alert('Masukkan angka lebih dari 0');return;}
+  if(tambah>ST.gudang){alert('Stok gudang tidak cukup! Ada: '+ST.gudang+' bungkus');return;}
+  const stokBaru=stokSekarang+tambah;
+  await sb('PATCH','outlets',{stok:stokBaru},`?id=eq.${id}`);
+  const o=OUTLETS.find(o=>o.id===id);if(o)o.stok=stokBaru;
+  // Kacang pindah dari gudang ke kedai
+  await saveState({gudang:ST.gudang-tambah});
+  await addJurnal('outlet',`Tambah stok ${nama}: +${tambah} bungkus (dari gudang)`,today());
+  toast('✅ '+nama+': +'+tambah+' bungkus (gudang -'+tambah+')');
+  renderAll();
+}
+
+async function koreksiStokKedai(id,nama,stokLama){
+  const stokBaru=prompt(`✏️ KOREKSI STOK "${nama}" (sekarang: ${stokLama} bungkus)\n\n⚠️ Ini cuma betulin angka kalau salah catat.\nTIDAK mengubah stok gudang.\nMasukkan stok yang benar:`);
   if(stokBaru===null)return;
   const stok=parseInt(stokBaru);
   if(isNaN(stok)||stok<0){alert('Angka tidak valid');return;}
+  const selisih=stok-stokLama;
+  if(selisih!==0){
+    if(!confirm(`Koreksi stok ${nama}: ${stokLama} → ${stok} (${selisih>0?'+':''}${selisih})\n\n⚠️ Gudang TIDAK berubah. Lanjut?`))return;
+  }
   await sb('PATCH','outlets',{stok},`?id=eq.${id}`);
   const o=OUTLETS.find(o=>o.id===id);if(o)o.stok=stok;
-  toast('✅ Stok kedai diupdate');renderAll();
+  await addJurnal('outlet',`Koreksi stok ${nama}: ${stokLama} → ${stok} bungkus`,today());
+  toast('✅ Stok '+nama+' dikoreksi');renderAll();
 }
 
 function renderOutlets(){
@@ -409,9 +430,10 @@ function renderOutlets(){
       <div class="row"><span class="row-label">Total terjual</span><span class="tg">${o.total_laku} bungkus</span></div>
       <div class="row"><span class="row-label">Total pemasukan</span><span class="tg">${idr(o.total_omzet,true)}</span></div>
       ${ROLE==='owner'?`
-      <div style="display:flex;gap:8px;margin-top:8px">
-        <button class="btn btn-sm" onclick="editOutletStok('${o.id}','${o.nama}',${o.stok})" style="flex:1">✏️ Edit Stok</button>
-        <button class="btn btn-danger btn-sm" onclick="hapusOutlet('${o.id}','${o.nama}')" style="flex:1">🗑 Hapus</button>
+      <div style="display:flex;gap:6px;margin-top:8px">
+        <button class="btn btn-sm" onclick="tambahStokKedai('${o.id}','${o.nama}',${o.stok})" style="flex:1;background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe">➕ Tambah Stok</button>
+        <button class="btn btn-sm" onclick="koreksiStokKedai('${o.id}','${o.nama}',${o.stok})" style="flex:1">✏️ Koreksi</button>
+        <button class="btn btn-danger btn-sm" onclick="hapusOutlet('${o.id}','${o.nama}')" style="flex:0 0 auto">🗑</button>
       </div>`:''}
     </div>`;
   }).join('');
