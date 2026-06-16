@@ -616,9 +616,16 @@ function renderModeRute(){
 
 // ─── MODAL VISIT ──────────────────────────────────────────
 let VISIT_OUTLET_ID = null;
+let _tunaiEdited = false;
+
+function tunaiManualEdit(){
+  _tunaiEdited=true;
+  calcModalVisit();
+}
 
 function bukaModalVisit(outletId){
   VISIT_OUTLET_ID=outletId;
+  _tunaiEdited=false;
   const o=OUTLETS.find(o=>o.id===outletId);
   if(!o)return;
   setText('mv-nama',o.nama);
@@ -642,12 +649,29 @@ function calcModalVisit(){
   const sisa=+v('mv-sisa'),refill=+v('mv-refill')||0,rusak=+v('mv-rusak')||0;
   const laku=Math.max(0,o.stok-sisa);
   const omzet=laku*HARGA_JUAL,hpp=lastHPP(),laba=laku*(HARGA_JUAL-hpp);
+  // Auto-fill bayar tunai = omzet kalau user belum edit manual
+  if(!_tunaiEdited){
+    setv('mv-tunai',omzet>0?omzet:'');
+  }
   const tunai=Math.min(+v('mv-tunai')||0,omzet);
   const bon=omzet-tunai;
   setText('mv-laku',laku+' bungkus');
   setText('mv-omzet',idr(omzet));
   setText('mv-tunai-preview',idr(tunai));
   setText('mv-bon-preview',bon>0?idr(bon):'Rp0');
+  // Indikator lunas/bon
+  const statusEl=el('mv-status');
+  if(statusEl){
+    if(omzet===0){
+      statusEl.style.display='none';
+    } else if(bon===0){
+      statusEl.style.display='block';
+      statusEl.innerHTML='<div style="background:#dcfce7;color:#16a34a;border-radius:8px;padding:8px 12px;font-weight:700;text-align:center;font-size:13px">✓ LUNAS</div>';
+    } else {
+      statusEl.style.display='block';
+      statusEl.innerHTML=`<div style="background:#fee2e2;color:#dc2626;border-radius:8px;padding:8px 12px;font-weight:700;text-align:center;font-size:13px">⚠️ NGEBON ${idr(bon)}</div>`;
+    }
+  }
   el('mv-preview').style.display='block';
 }
 
