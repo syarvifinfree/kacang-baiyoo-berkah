@@ -689,37 +689,48 @@ async function simpanModalVisit(){
   if(refill>ST.gudang){toast('Stok gudang tidak cukup! (ada: '+ST.gudang+' bungkus)');return;}
   const newStok=refill>0?refill:sisa-rusak;
   const newPiutang=Math.max(0,(o.piutang||0)-bayarBonLama)+bayarBon;
-  await sb('PATCH','outlets',{
-    stok:newStok,last_visit:tgl,
-    total_laku:(o.total_laku||0)+laku,
-    total_omzet:(o.total_omzet||0)+omzet,
-    piutang:newPiutang
-  },'?id=eq.'+o.id);
-  const oIdx=OUTLETS.findIndex(x=>x.id===o.id);
-  if(oIdx>=0)OUTLETS[oIdx]={...o,stok:newStok,last_visit:tgl,
-    total_laku:(o.total_laku||0)+laku,
-    total_omzet:(o.total_omzet||0)+omzet,
-    piutang:newPiutang};
-  const visitRow={outlet_id:o.id,outlet_nama:o.nama,stok_awal:o.stok,
-    sisa,laku,refill,rusak,omzet,laba,hpp,
-    bayar_tunai:bayarTunai,bayar_bon:bayarBon,bayar_bon_lama:bayarBonLama,tgl};
-  const res=await sb('POST','visits',visitRow);
-  if(res&&res.length)VISITS.unshift(res[0]);else VISITS.unshift(visitRow);
-  const totalKasMasuk=bayarTunai+bayarBonLama;
-  const stPatch={
-    gudang:ST.gudang-refill+(refill>0?sisa-rusak:0),
-    total_omzet:ST.total_omzet+omzet,total_hpp:ST.total_hpp+laku*hpp,
-    laba_akum:ST.laba_akum+laba,laba_u:ST.laba_u+laba,
-    week_omzet:ST.week_omzet+omzet,week_laba:ST.week_laba+laba,
-    kas:ST.kas+totalKasMasuk,
-    piutang:Math.max(0,ST.piutang-bayarBonLama)+bayarBon
-  };
-  await saveState(stPatch);
-  await addJurnal('visit',`Kunjungan ${o.nama}: ${laku} terjual | tunai ${idr(totalKasMasuk,true)} | bon ${idr(bayarBon,true)} | refill ${refill}`,tgl);
-  closeModal('modal-visit');
-  toast(`✅ ${o.nama}: ${laku} laku`);
-  renderModeRute();
-  renderNeraca();
+
+  try {
+    // 1. Simpan visit DULU (kalau gagal, hentikan sebelum ubah apapun)
+    const visitRow={outlet_id:o.id,outlet_nama:o.nama,stok_awal:o.stok,
+      sisa,laku,refill,rusak,omzet,laba,hpp,
+      bayar_tunai:bayarTunai,bayar_bon:bayarBon,bayar_bon_lama:bayarBonLama,tgl};
+    const res=await sb('POST','visits',visitRow);
+
+    // 2. Update outlet
+    await sb('PATCH','outlets',{
+      stok:newStok,last_visit:tgl,
+      total_laku:(o.total_laku||0)+laku,
+      total_omzet:(o.total_omzet||0)+omzet,
+      piutang:newPiutang
+    },'?id=eq.'+o.id);
+    const oIdx=OUTLETS.findIndex(x=>x.id===o.id);
+    if(oIdx>=0)OUTLETS[oIdx]={...o,stok:newStok,last_visit:tgl,
+      total_laku:(o.total_laku||0)+laku,
+      total_omzet:(o.total_omzet||0)+omzet,
+      piutang:newPiutang};
+    if(res&&res.length)VISITS.unshift(res[0]);else VISITS.unshift(visitRow);
+
+    // 3. Update state global (kas, piutang, gudang, laba)
+    const totalKasMasuk=bayarTunai+bayarBonLama;
+    const stPatch={
+      gudang:ST.gudang-refill+(refill>0?sisa-rusak:0),
+      total_omzet:ST.total_omzet+omzet,total_hpp:ST.total_hpp+laku*hpp,
+      laba_akum:ST.laba_akum+laba,laba_u:ST.laba_u+laba,
+      week_omzet:ST.week_omzet+omzet,week_laba:ST.week_laba+laba,
+      kas:ST.kas+totalKasMasuk,
+      piutang:Math.max(0,ST.piutang-bayarBonLama)+bayarBon
+    };
+    await saveState(stPatch);
+    await addJurnal('visit',`Kunjungan ${o.nama}: ${laku} terjual | tunai ${idr(totalKasMasuk,true)} | bon ${idr(bayarBon,true)} | refill ${refill}`,tgl);
+    closeModal('modal-visit');
+    toast(`✅ ${o.nama}: ${laku} laku`);
+    renderModeRute();
+    renderNeraca();
+  } catch(err) {
+    toast('❌ Gagal simpan: '+(err.message||err));
+    console.error('simpanModalVisit error:',err);
+  }
 }
 
 async function cekDoangModal(){
