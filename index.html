@@ -617,11 +617,22 @@
 <!-- MODAL: TAMBAH OUTLET -->
 <div class="modal-overlay" id="modal-outlet" onclick="closeModalOut(event,'modal-outlet')">
   <div class="modal">
-    <div class="modal-title">Tambah Outlet Baru</div>
+    <div class="modal-title">Tambah Kedai Baru</div>
     <label>Nama warung</label><input type="text" id="no-nama" placeholder="cth: Warung Bu Sari">
-    <label>Alamat / area</label><input type="text" id="no-alamat" placeholder="cth: Jl. Merdeka No. 5">
+    <label>Area / kampung</label><input type="text" id="no-alamat" placeholder="cth: Baringin">
+    <label>Rute (hari ngampas)</label>
+    <select id="no-rute">
+      <option value="">-- pilih rute --</option>
+      <option value="1">Rute 1</option>
+      <option value="2">Rute 2</option>
+      <option value="3">Rute 3</option>
+      <option value="4">Rute 4</option>
+    </select>
+    <label>Stok awal di kedai (bungkus)</label>
+    <input type="number" id="no-stok" placeholder="0">
+    <div style="font-size:11px;color:var(--text3);margin-top:2px">Stok awal akan dikurangi dari gudang Ilham. Isi 0 kalau belum nitip.</div>
     <label>Tanggal mulai konsinyasi</label><input type="date" id="no-tgl">
-    <div class="btn-row">
+    <div class="btn-row" style="margin-top:14px">
       <button class="btn" onclick="closeModal('modal-outlet')">Batal</button>
       <button class="btn btn-primary" onclick="simpanOutlet()">✅ Simpan</button>
     </div>
@@ -777,6 +788,32 @@
     <div class="btn-row" style="margin-top:16px">
       <button class="btn" onclick="closeModal('modal-lunasi-bon')">Batal</button>
       <button class="btn btn-primary" onclick="konfirmasiLunasi()">✅ Lunasi</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: KONVERSI TF MANDIRI -->
+<div class="modal-overlay" id="modal-konversi-tf" onclick="closeModalOut(event,'modal-konversi-tf')">
+  <div class="modal">
+    <div class="modal-title">🏦 Konversi ke TF Mandiri</div>
+    <div class="row" style="margin-bottom:8px">
+      <span class="row-label">Kedai</span>
+      <span class="tb" id="ktf-nama">-</span>
+    </div>
+    <div class="row" style="margin-bottom:4px">
+      <span class="row-label">Bayar tunai</span>
+      <span id="ktf-tunai">-</span>
+    </div>
+    <div class="row" style="margin-bottom:12px">
+      <span class="row-label">Bisa dipindah</span>
+      <span class="tb" id="ktf-sisa">-</span>
+    </div>
+    <label>Nominal pindah ke Mandiri (Rp)</label>
+    <input type="number" id="ktf-nom" placeholder="0">
+    <div style="font-size:11px;color:var(--text3);margin-top:4px">Kas berkurang, Bank Mandiri bertambah</div>
+    <div class="btn-row" style="margin-top:16px">
+      <button class="btn" onclick="closeModal('modal-konversi-tf')">Batal</button>
+      <button class="btn btn-primary" onclick="konfirmasiKonversiTF()">🏦 Pindah ke Mandiri</button>
     </div>
   </div>
 </div>

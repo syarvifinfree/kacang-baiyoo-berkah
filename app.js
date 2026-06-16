@@ -349,14 +349,21 @@ function renderListProd(){
 // ─── OUTLET ───────────────────────────────────────────────
 async function simpanOutlet(){
   const nama=v('no-nama').trim(),alamat=v('no-alamat').trim(),tgl=v('no-tgl');
+  const rute=+v('no-rute')||0,stok=+v('no-stok')||0;
   if(!nama){toast('Isi nama warung');return;}
-  const row={nama,alamat,stok:0,last_visit:null,total_laku:0,total_omzet:0,tgl_mulai:tgl};
+  if(!rute){toast('Pilih rute dulu (1-4)');return;}
+  const row={nama,alamat,stok,rute,last_visit:null,total_laku:0,total_omzet:0,piutang:0,tgl_mulai:tgl};
   const res=await sb('POST','outlets',row);
   if(res&&res.length)OUTLETS.push(res[0]);else OUTLETS.push(row);
-  setv('no-nama','');setv('no-alamat','');
+  // Kalau ada stok awal, kurangi dari gudang (kacang pindah dari gudang ke kedai)
+  if(stok>0){
+    if(stok>ST.gudang){toast('⚠️ Stok awal melebihi gudang ('+ST.gudang+'). Kedai tetap dibuat, cek gudang.');}
+    else{await saveState({gudang:ST.gudang-stok});}
+  }
+  setv('no-nama','');setv('no-alamat','');setv('no-stok','');setv('no-rute','');
   closeModal('modal-outlet');
-  await addJurnal('outlet',`Kedai baru: ${nama}`,tgl);
-  toast('✅ Outlet '+nama+' ditambahkan');renderAll();
+  await addJurnal('outlet',`Kedai baru: ${nama} (Rute ${rute}, stok ${stok})`,tgl);
+  toast('✅ Kedai '+nama+' ditambahkan');renderAll();
 }
 
 async function hapusOutlet(id,nama){
@@ -827,11 +834,16 @@ async function hapusVisit(id,laku,omzet,laba,hpp,bayarTunai,bayarBon,refill,sisa
     o.total_omzet=Math.max(0,(o.total_omzet||0)-omzet);
   }
   const balikGudang=refill>0?sisa-rusak:0;
-  // Kas berkurang = tunai yang masuk (bayar tunai + bayar bon lama)
-  const totalKasBerkurang=bayarTunai+bayarBonLama;
+  // Sebagian tunai mungkin sudah dipindah ke Mandiri (tf_mandiri)
+  const tfMandiri=visitIni?(visitIni.tf_mandiri||0):0;
+  // Total uang masuk = bayar tunai + bayar bon lama. Sebagian (tfMandiri) ada di bank.
+  const totalMasuk=bayarTunai+bayarBonLama;
+  const dariBank=Math.min(tfMandiri,ST.bank);          // tarik balik dari Mandiri dulu
+  const dariKas=Math.max(0,totalMasuk-dariBank);        // sisanya dari kas
   const stPatch={
     gudang:ST.gudang+refill-balikGudang,
-    kas:Math.max(0,ST.kas-totalKasBerkurang),
+    kas:Math.max(0,ST.kas-dariKas),
+    bank:Math.max(0,ST.bank-dariBank),
     piutang:outletPiutangTotal(),
     total_omzet:Math.max(0,ST.total_omzet-omzet),
     total_hpp:Math.max(0,ST.total_hpp-(laku+rusak)*hpp),
@@ -877,8 +889,49 @@ function renderListVisit(){
       ${v.laku===0&&v.omzet===0?'<div style="margin:4px 0"><span class="badge" style="background:var(--blue-bg);color:var(--blue);padding:2px 8px;border-radius:8px;font-size:11px">👁 Kunjungan Cek</span></div>':''}
       ${v.bayar_tunai>0?`<div class="row"><span class="row-label">Bayar Tunai</span><span class="tg">${idr(v.bayar_tunai)}</span></div>`:''}
       ${v.bayar_bon>0?`<div class="row"><span class="row-label">Bon</span><span class="tr">${idr(v.bayar_bon)}</span></div>`:''}
+      ${(v.tf_mandiri||0)>0?`<div class="row"><span class="row-label">🏦 Sudah TF Mandiri</span><span class="tb" style="color:#2563eb">${idr(v.tf_mandiri)}</span></div>`:''}
+      ${v.bayar_tunai>0&&(v.tf_mandiri||0)<v.bayar_tunai?`<button class="btn btn-sm" style="margin-top:6px;background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe" onclick="bukaKonversiTF('${v.id}')">🏦 Konversi ke TF Mandiri</button>`:''}
       ${ROLE==='owner'?`<button class="btn btn-danger btn-sm" style="margin-top:6px" onclick="hapusVisit('${v.id}',${v.laku},${v.omzet},${v.laba},${v.hpp},${v.bayar_tunai||0},${v.bayar_bon||0},${v.refill},${v.sisa},${v.rusak||0},'${v.outlet_id}',${v.stok_awal})">🗑 Hapus Visit</button>`:''}
     </div>`).join('');
+}
+
+// ─── KONVERSI TUNAI → TF MANDIRI ──────────────────────────
+let _konversiVisitId=null;
+
+function bukaKonversiTF(visitId){
+  const v=VISITS.find(x=>x.id===visitId);
+  if(!v)return;
+  _konversiVisitId=visitId;
+  const sudahTF=v.tf_mandiri||0;
+  const sisaBisaTF=(v.bayar_tunai||0)-sudahTF;
+  setText('ktf-nama',v.outlet_nama);
+  setText('ktf-tunai',idr(v.bayar_tunai||0));
+  setText('ktf-sisa',idr(sisaBisaTF));
+  setv('ktf-nom',sisaBisaTF>0?sisaBisaTF:'');
+  openModal('modal-konversi-tf');
+}
+
+async function konfirmasiKonversiTF(){
+  const v=VISITS.find(x=>x.id===_konversiVisitId);
+  if(!v){toast('Visit tidak ditemukan');return;}
+  const nom=+v('ktf-nom');
+  const sudahTF=v.tf_mandiri||0;
+  const sisaBisaTF=(v.bayar_tunai||0)-sudahTF;
+  if(!nom||nom<=0){toast('Isi nominal');return;}
+  if(nom>sisaBisaTF){toast('Melebihi sisa tunai yang bisa dipindah: '+idr(sisaBisaTF));return;}
+  if(ST.kas<nom){toast('Kas tidak cukup: '+idr(ST.kas));return;}
+  // Update visit: tambah tf_mandiri
+  const newTF=sudahTF+nom;
+  await sb('PATCH','visits',{tf_mandiri:newTF},'?id=eq.'+_konversiVisitId);
+  const vIdx=VISITS.findIndex(x=>x.id===_konversiVisitId);
+  if(vIdx>=0)VISITS[vIdx]={...v,tf_mandiri:newTF};
+  // Kas berkurang, Mandiri bertambah
+  await saveState({kas:ST.kas-nom,bank:ST.bank+nom});
+  await addJurnal('kas',`Konversi TF Mandiri ${v.outlet_nama}: Kas -${idr(nom,true)} → Mandiri +${idr(nom,true)}`,today());
+  closeModal('modal-konversi-tf');
+  toast('✅ '+idr(nom)+' dipindah ke Mandiri');
+  renderListVisit();
+  renderNeraca();
 }
 
 // ─── CLOSING ──────────────────────────────────────────────
