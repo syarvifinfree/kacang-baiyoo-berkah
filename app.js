@@ -497,7 +497,7 @@ function pilihRute(rute){
     if(aLate!==bLate)return aLate-bLate;
     return (a.alamat||'').localeCompare(b.alamat||'');
   });
-    renderModeRute();
+  renderModeNgampas();
 }
 
 function backToPilihRute(){
