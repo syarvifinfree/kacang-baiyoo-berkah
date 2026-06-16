@@ -975,19 +975,29 @@ async function simpanClosing(){
   const kasOwner=bhOwnerStatus==='ambil'?owner:0;
   const kasMotor=bhMotorStatus==='bayar'?motor:0;
   const totalKasBerkurang=kasOwner+tunaiIlham+kasMotor;
+  // Cascade: kas dulu → kurang? tambal Mandiri → kurang? tambal pribadi (utang owner)
+  let sisaBayar=totalKasBerkurang;
+  const dariKas=Math.min(ST.kas,sisaBayar);sisaBayar-=dariKas;
+  const dariBank=Math.min(ST.bank,sisaBayar);sisaBayar-=dariBank;
+  const dariPribadi=sisaBayar;
+  let sumberDana='Kas -'+idr(dariKas);
+  if(dariBank>0)sumberDana+=' | Mandiri -'+idr(dariBank);
+  if(dariPribadi>0)sumberDana+=' | Pribadi -'+idr(dariPribadi)+' (jadi utang KBB ke lo)';
   const ok=confirm(
     'KONFIRMASI CLOSING\n\n'+
     'Bagian Syarvi: '+idr(owner)+' - '+(bhOwnerStatus==='ambil'?'Sudah diambil (kas -'+idr(owner)+')':'Belum diambil')+'\n'+
     'Fee Ilham: '+idr(mitra)+' - '+(bhIlhamStatus==='tunai'?'Bayar tunai':bhIlhamStatus==='kasbon'?'Potong kasbon Ilham -'+idr(pot):'Tunai '+idr(tunaiIlham)+' + Potong kasbon Ilham -'+idr(pot))+'\n'+
     'Cicilan Motor: '+idr(motor)+' - '+(bhMotorStatus==='bayar'?'Udah dibayar':'Belum dibayar')+'\n\n'+
-    'Kas berkurang: '+idr(totalKasBerkurang)+'\n'+
-    'Kas akhir: '+idr(ST.kas-totalKasBerkurang)+'\n'+
+    'Total keluar: '+idr(totalKasBerkurang)+'\n'+
+    'Sumber: '+sumberDana+'\n'+
     'Sisa kasbon: '+idr(Math.max(0,kasbonAktif()-pot))+'\n\n'+
     'Lanjut simpan?'
   );
   if(!ok)return;
   const patch={};
-  patch.kas=ST.kas-totalKasBerkurang;
+  patch.kas=ST.kas-dariKas;
+  if(dariBank>0)patch.bank=ST.bank-dariBank;
+  if(dariPribadi>0)patch.utang_owner=(ST.utang_owner||0)+dariPribadi;
   if(bhMotorStatus==='bayar'){
     patch.motor_bayar=Math.min(MOTOR_NILAI,ST.motor_bayar+motor);
     patch.motor_lunas=patch.motor_bayar>=MOTOR_NILAI;
@@ -1003,7 +1013,8 @@ async function simpanClosing(){
   }
   patch.dana_cad=ST.dana_cad+cad;
   patch.laba_u=Math.max(0,ST.laba_u-bhLaba);
-  patch.laba_akum=ST.laba_akum+bhLaba;
+  // laba_akum TIDAK ditambah lagi di sini — sudah ketambahan saat visit.
+  // Closing hanya memindah laba dari 'belum dibagi' (laba_u) ke 'sudah dibagi'.
   patch.week_omzet=0;patch.week_laba=0;
   const bhData={
     bh_laba:bhLaba,bh_owner:owner,bh_mitra:mitra,bh_motor:motor,bh_cad:cad,bh_pot:pot,
@@ -1014,7 +1025,7 @@ async function simpanClosing(){
   const res=await sb('POST','closing',closingRow);
   if(res&&res.length)CLOSING.unshift(res[0]);else CLOSING.unshift(closingRow);
   await saveState(patch);
-  await addJurnal('closing',`Closing: laba ${idr(bhLaba,true)} | kas -${idr(totalKasBerkurang,true)}`);
+  await addJurnal('closing',`Closing: laba ${idr(bhLaba,true)} | keluar ${idr(totalKasBerkurang,true)} (${sumberDana})`);
   setv('bh-input','');
   el('prev-bh').classList.remove('show');
   KASBON=await sb('GET','kasbon',null,'?order=created_at.desc')||[];
@@ -1180,7 +1191,63 @@ async function simpanOps(){
   }
 }
 
+// ─── UPDATE SALDO ─────────────────────────────────────────
+let _updateSaldoTipe=null;
+function bukaUpdateSaldo(tipe){
+  if(ROLE!=='owner'){toast('Hanya owner');return;}
+  _updateSaldoTipe=tipe;
+  const label=tipe==='kas'?'Uang Kas':'Bank Mandiri';
+  const nilai=tipe==='kas'?ST.kas:ST.bank;
+  setText('us-title','✏️ Update '+label);
+  setText('us-current',idr(nilai));
+  setv('us-nom','');setv('us-ket','');
+  openModal('modal-update-saldo');
+}
+
+async function simpanUpdateSaldo(){
+  if(ROLE!=='owner'){toast('Hanya owner');return;}
+  const nomBaru=+v('us-nom');
+  const ket=v('us-ket').trim();
+  if(v('us-nom')===''){toast('Isi saldo baru');return;}
+  if(nomBaru<0){toast('Saldo tidak boleh negatif');return;}
+  const nilaiLama=_updateSaldoTipe==='kas'?ST.kas:ST.bank;
+  const selisih=nomBaru-nilaiLama;
+  const label=_updateSaldoTipe==='kas'?'Kas':'Bank Mandiri';
+  if(!confirm(`Update saldo ${label}?\n\nDari: ${idr(nilaiLama)}\nJadi: ${idr(nomBaru)}\nSelisih: ${selisih>=0?'+':''}${idr(selisih)}\n\nLanjut?`))return;
+  const patch={};
+  if(_updateSaldoTipe==='kas')patch.kas=nomBaru;else patch.bank=nomBaru;
+  await saveState(patch);
+  await addJurnal('kas',`Update saldo ${label}: ${idr(nilaiLama,true)} → ${idr(nomBaru,true)} (${selisih>=0?'+':''}${idr(selisih,true)})${ket?' | '+ket:''}`,today());
+  closeModal('modal-update-saldo');
+  toast('✅ Saldo '+label+' diupdate jadi '+idr(nomBaru));
+  renderAll();
+}
+
 // ─── PIUTANG OWNER ────────────────────────────────────────
+function bukaRiwayatUtangOwner(){
+  setText('uo-total',idr(ST.utang_owner||0));
+  // Ambil jurnal yang menambah/mengurangi utang owner
+  const riwayat=JURNAL.filter(j=>j.keterangan&&(
+    j.keterangan.includes('pribadi')||
+    j.keterangan.includes('utang ke lo')||
+    j.keterangan.includes('Owner ambil piutang')||
+    j.keterangan.includes('Pribadi -')
+  ));
+  const e=el('uo-list');
+  if(!riwayat.length){e.innerHTML='<div class="empty">Belum ada riwayat utang owner</div>';openModal('modal-utang-owner');return;}
+  e.innerHTML=riwayat.slice(0,50).map(j=>{
+    const masuk=j.keterangan.includes('Owner ambil piutang');
+    return`<div class="row" style="padding:8px 0;border-bottom:0.5px solid var(--border)">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12px;color:var(--text2)">${j.keterangan}</div>
+        <div style="font-size:11px;color:var(--text3)">${j.tgl}</div>
+      </div>
+      <span class="badge ${masuk?'badge-green':'badge-amber'}" style="flex-shrink:0;margin-left:6px">${masuk?'diambil':'+utang'}</span>
+    </div>`;
+  }).join('');
+  openModal('modal-utang-owner');
+}
+
 async function ambilPiutangOwner(){
   if(ROLE!=='owner'){toast('Hanya owner');return;}
   const nom=+v('po-nom');

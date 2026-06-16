@@ -253,7 +253,7 @@
     <div class="card">
       <div class="row"><span class="row-label">Utang Supplier</span><span class="tr" id="n-hsup">-</span></div>
       <div class="row" id="row-utang-upah" style="display:none"><span class="row-label" style="color:var(--amber)">Utang Upah</span><span class="tr" id="n-utang-upah">Rp0</span></div>
-      <div class="row" id="row-utang-owner" style="display:none"><span class="row-label" style="color:var(--amber)">Utang Owner</span><span class="tr" id="n-utang-owner">Rp0</span></div>
+      <div class="row" id="row-utang-owner" style="display:none;cursor:pointer" onclick="bukaRiwayatUtangOwner()"><span class="row-label" style="color:var(--amber)">Utang Owner <span style="font-size:10px;color:var(--text3)">(tap riwayat)</span></span><span class="tr" id="n-utang-owner">Rp0</span></div>
       <div class="row" style="border-top:1px solid var(--border);padding-top:6px;margin-top:2px"><span class="row-label tb" style="color:var(--red)">Total Utang</span><span class="tr tb" id="n-total-utang">-</span></div>
       <div class="row"><span class="row-label">Dana cadangan</span><span class="tg" id="n-cad">-</span></div>
       <div class="row"><span class="row-label">Modal Owner</span><span class="ti" id="n-modal">-</span></div>
@@ -518,8 +518,8 @@
   <!-- PAGE: KAS & BANK -->
   <div class="page" id="page-kas">
     <div class="mg">
-      <div class="met"><div class="met-label">💵 Uang Kas</div><div class="met-val" id="kb-kas">-</div></div>
-      <div class="met"><div class="met-label">🏦 Bank Mandiri</div><div class="met-val" id="kb-bank">-</div></div>
+      <div class="met" onclick="bukaUpdateSaldo('kas')" style="cursor:pointer"><div class="met-label">💵 Uang Kas ✏️</div><div class="met-val" id="kb-kas">-</div></div>
+      <div class="met" onclick="bukaUpdateSaldo('bank')" style="cursor:pointer"><div class="met-label">🏦 Bank Mandiri ✏️</div><div class="met-val" id="kb-bank">-</div></div>
     </div>
 
     <div class="sec">Setor Kas</div>
@@ -733,6 +733,33 @@
       </button>
     </div>
 
+  </div>
+</div>
+
+<!-- MODAL: UPDATE SALDO -->
+<div class="modal-overlay" id="modal-update-saldo" onclick="closeModalOut(event,'modal-update-saldo')">
+  <div class="modal">
+    <div class="modal-title" id="us-title">✏️ Update Saldo</div>
+    <div class="alert alert-info" style="margin-bottom:10px">💡 Untuk koreksi/penyesuaian saldo agar cocok dengan kondisi nyata. Selisihnya akan dicatat di jurnal.</div>
+    <div class="row" style="margin-bottom:8px"><span class="row-label">Saldo sekarang</span><span class="tb" id="us-current">-</span></div>
+    <label>Saldo baru (Rp)</label>
+    <input type="number" id="us-nom" placeholder="0">
+    <label style="margin-top:8px">Keterangan</label>
+    <input type="text" id="us-ket" placeholder="cth: koreksi selisih hitung">
+    <div class="btn-row" style="margin-top:14px">
+      <button class="btn" onclick="closeModal('modal-update-saldo')">Batal</button>
+      <button class="btn btn-primary" onclick="simpanUpdateSaldo()">✅ Update</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: RIWAYAT UTANG OWNER -->
+<div class="modal-overlay" id="modal-utang-owner" onclick="closeModalOut(event,'modal-utang-owner')">
+  <div class="modal">
+    <div class="modal-title">📒 Riwayat Utang KBB ke Owner</div>
+    <div class="row" style="margin-bottom:8px"><span class="tb">Total utang sekarang</span><span class="tr tb" id="uo-total">-</span></div>
+    <div id="uo-list" style="max-height:300px;overflow-y:auto"></div>
+    <button class="btn" onclick="closeModal('modal-utang-owner')" style="margin-top:10px;width:100%">Tutup</button>
   </div>
 </div>
 
