@@ -154,7 +154,7 @@ function renderAll(){
   const activePage=document.querySelector('.page.active')?.id||'';
   renderNeraca();renderMotor();renderKasbonList();updateClosingSum();
   if(activePage==='page-outlet')renderOutlets();
-  if(activePage==='page-visit'){renderAlarm();renderModeNgampas();renderListVisit();}
+  if(activePage==='page-visit'){renderAlarm();if(!el('modal-visit')?.classList.contains('open'))renderModeNgampas();renderListVisit();}
   if(el('modal-daftar-bon')&&el('modal-daftar-bon').classList.contains('open'))renderDaftarBon();
   if(activePage==='page-produksi')renderListProd();
   if(activePage==='page-closing')renderListClosing();
@@ -695,7 +695,7 @@ async function simpanModalVisit(){
   closeModal('modal-visit');
   toast(`✅ ${o.nama}: ${laku} laku`);
   renderModeRute();
-  renderAll();
+  renderNeraca();
 }
 
 async function cekDoangModal(){
@@ -714,6 +714,7 @@ async function cekDoangModal(){
   closeModal('modal-visit');
   toast(`📍 ${o.nama} ditandai dikunjungi`);
   renderModeRute();
+  renderPilihRute();
 }
 
 function renderVisitSelect(){
