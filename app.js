@@ -138,10 +138,8 @@ async function loadAll(){
     await getState();
     OUTLETS=await sb('GET','outlets',null,'?order=created_at.asc')||[];
     PRODUKSI=await sb('GET','produksi',null,'?order=created_at.desc&limit=20')||[];
-    // Load visits minggu ini + 3 hari sebelumnya untuk konteks
-    const weekAgo=new Date();weekAgo.setDate(weekAgo.getDate()-10);
-    const weekStr=weekAgo.toISOString().split('T')[0];
-    VISITS=await sb('GET','visits',null,'?order=created_at.desc&tgl=gte.'+weekStr+'&limit=300')||[];
+    // Ambil 300 visit terbaru (cukup untuk riwayat & summary)
+    VISITS=await sb('GET','visits',null,'?order=created_at.desc&limit=300')||[];
     KASBON=await sb('GET','kasbon',null,'?order=created_at.desc')||[];
     CLOSING=await sb('GET','closing',null,'?order=created_at.desc&limit=10')||[];
     JURNAL=await sb('GET','jurnal',null,'?order=created_at.desc&limit=100')||[];
