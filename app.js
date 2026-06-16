@@ -145,6 +145,12 @@ async function loadAll(){
     KASBON=await sb('GET','kasbon',null,'?order=created_at.desc')||[];
     CLOSING=await sb('GET','closing',null,'?order=created_at.desc&limit=10')||[];
     JURNAL=await sb('GET','jurnal',null,'?order=created_at.desc&limit=100')||[];
+    // Sinkronkan ST.piutang dengan total piutang real semua outlet
+    const piutangReal=OUTLETS.reduce((s,o)=>s+(o.piutang||0),0);
+    if(ST.piutang!==piutangReal){
+      ST.piutang=piutangReal;
+      await saveState({piutang:piutangReal});
+    }
   }catch(e){toast('Gagal koneksi ke database');console.error(e);}
 }
 
@@ -171,11 +177,14 @@ function renderAll(){
 }
 
 // ─── NERACA ───────────────────────────────────────────────
+function outletPiutangTotal(){return OUTLETS.reduce((s,o)=>s+(o.piutang||0),0);}
+
 function renderNeraca(){
   setText('n-kas',idr(ST.kas,true));setText('n-bank',idr(ST.bank,true));
   setText('n-kal',ST.stok_kal+' kaleng');setText('n-gudang',ST.gudang+' bungkus');
   setText('n-outlet-stok',outletStokTotal()+' bungkus');
-  setText('n-piutang',idr(ST.piutang,true));setText('n-hsup',idr(ST.hutang_sup,true));
+  const piutangReal=outletPiutangTotal();
+  setText('n-piutang',idr(piutangReal,true));setText('n-hsup',idr(ST.hutang_sup,true));
   setText('n-cad',idr(ST.dana_cad,true));setText('n-modal',idr(ST.modal,true));
   setText('n-laba',idr(ST.laba_akum,true));setText('n-labau',idr(ST.laba_u,true));
   setText('kb-kas',idr(ST.kas,true));setText('kb-bank',idr(ST.bank,true));
@@ -191,7 +200,7 @@ function renderNeraca(){
     e.textContent=ok?yes:no;e.className='badge '+(ok?'badge-green':'badge-red');
   }
   setk('k1',ST.stok_kal>=0&&ST.gudang>=0,'Aman','Stok aman');
-  setk('k2',ST.piutang<2000000,'Aman','Bon numpuk');
+  setk('k2',outletPiutangTotal()<2000000,'Aman','Bon numpuk');
   setk('k3',needVisit===0,'Kedai oke',needVisit+' kedai');
   setk('k4',ST.laba_u>=0,'Untung','Rugi');
   if(ST.setup){const ss=el('setup-section');if(ss)ss.style.display='none';}
@@ -532,6 +541,14 @@ function renderModeRute(){
   if(!e)return;
   const labels={1:'Rute 1',2:'Rute 2',3:'Rute 3',4:'Rute 4'};
   setText('rute-aktif-label',labels[RUTE_AKTIF]);
+
+  // Selalu ambil data terbaru dari OUTLETS (biar last_visit & piutang update real-time)
+  KEDAI_RUTE=OUTLETS.filter(o=>Number(o.rute)===RUTE_AKTIF).sort((a,b)=>{
+    const aLate=daysSince(a.last_visit)>=7?0:1;
+    const bLate=daysSince(b.last_visit)>=7?0:1;
+    if(aLate!==bLate)return aLate-bLate;
+    return (a.alamat||'').localeCompare(b.alamat||'');
+  });
 
   // Filter berdasarkan search
   const list=_ruteSearch
