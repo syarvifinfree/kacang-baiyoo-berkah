@@ -43,7 +43,7 @@ function el(id){return document.getElementById(id);}
 function setText(id,txt){const e=el(id);if(e)e.textContent=txt;}
 function setDates(){
   const t=today();
-  ['pr-tgl','v-tgl','sup-tgl','hs-tgl','op-tgl','kb-tgl','no-tgl','sk-tgl'].forEach(id=>{
+  ['pr-tgl','v-tgl','sup-tgl','hs-tgl','op-tgl','kb-tgl','no-tgl','sk-tgl','mv-tgl'].forEach(id=>{
     const e=el(id);if(e&&!e.value)e.value=t;
   });
 }
@@ -138,7 +138,10 @@ async function loadAll(){
     await getState();
     OUTLETS=await sb('GET','outlets',null,'?order=created_at.asc')||[];
     PRODUKSI=await sb('GET','produksi',null,'?order=created_at.desc&limit=20')||[];
-    VISITS=await sb('GET','visits',null,'?order=created_at.desc&limit=50')||[];
+    // Load visits minggu ini + 3 hari sebelumnya untuk konteks
+    const weekAgo=new Date();weekAgo.setDate(weekAgo.getDate()-10);
+    const weekStr=weekAgo.toISOString().split('T')[0];
+    VISITS=await sb('GET','visits',null,'?order=created_at.desc&tgl=gte.'+weekStr+'&limit=300')||[];
     KASBON=await sb('GET','kasbon',null,'?order=created_at.desc')||[];
     CLOSING=await sb('GET','closing',null,'?order=created_at.desc&limit=10')||[];
     JURNAL=await sb('GET','jurnal',null,'?order=created_at.desc&limit=100')||[];
@@ -151,7 +154,8 @@ function renderAll(){
   const activePage=document.querySelector('.page.active')?.id||'';
   renderNeraca();renderMotor();renderKasbonList();updateClosingSum();
   if(activePage==='page-outlet')renderOutlets();
-  if(activePage==='page-visit'){renderAlarm();renderVisitSelect();renderListVisit();}
+  if(activePage==='page-visit'){renderAlarm();renderModeNgampas();renderListVisit();}
+  if(el('modal-daftar-bon')&&el('modal-daftar-bon').classList.contains('open'))renderDaftarBon();
   if(activePage==='page-produksi')renderListProd();
   if(activePage==='page-closing')renderListClosing();
   if(activePage==='page-jurnal')renderJurnal();
@@ -413,61 +417,21 @@ function switchVisitTab(tab){
   if(tab==='riwayat') renderListVisit();
 }
 
-function searchKedai(){
-  const q=(v('v-search')||'').toLowerCase().trim();
-  const results=el('v-search-results');
-  if(!q){results.style.display='none';return;}
-  const filtered=OUTLETS.filter(o=>
-    o.nama.toLowerCase().includes(q)||(o.alamat||'').toLowerCase().includes(q)
-  ).slice(0,8);
-  if(!filtered.length){results.style.display='none';return;}
-  results.innerHTML=filtered.map(o=>{
-    const d=daysSince(o.last_visit);
-    const dotCls=d>=7?'dot-r':d>=5?'dot-a':'dot-g';
-    return`<div onclick="pilihKedaiDariSearch('${o.id}')" 
-      style="padding:10px 12px;cursor:pointer;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center"
-      onmouseover="this.style.background='var(--surface)'" onmouseout="this.style.background=''">
-      <div>
-        <div style="font-weight:500;font-size:13px">${o.nama}</div>
-        <div style="font-size:11px;color:var(--text3)">${o.alamat||'-'} · Stok: ${o.stok} bungkus</div>
-      </div>
-      <span class="dot ${dotCls}" style="flex-shrink:0"></span>
-    </div>`;
-  }).join('');
-  results.style.display='block';
-}
 
-function pilihKedaiDariSearch(id){
-  // Set outlet dropdown value
-  const sel=el('v-outlet');
-  // Find and set the option
-  let found=false;
-  for(let opt of sel.options){
-    if(opt.value===id){opt.selected=true;found=true;break;}
-  }
-  // If not in current dropdown, reload all outlets first
-  if(!found){
-    setv('v-area','');
-    renderVisitSelect();
-    setTimeout(()=>{
-      for(let opt of el('v-outlet').options){
-        if(opt.value===id){opt.selected=true;break;}
-      }
-      prevVisitOutlet();
-    },100);
-  } else {
-    prevVisitOutlet();
-  }
-  // Clear search
-  setv('v-search','');
-  el('v-search-results').style.display='none';
-}
+let _showAllAlarm=false;
+function showAllAlarm(){_showAllAlarm=true;renderAlarm();}
 
 function renderAlarm(){
   const urgent=OUTLETS.filter(o=>daysSince(o.last_visit)>=7).sort((a,b)=>daysSince(b.last_visit)-daysSince(a.last_visit));
   const e=el('alarm-list');
-  if(!urgent.length){e.innerHTML='<div class="alert alert-ok">✅ Semua kedai sudah dikunjungi minggu ini</div>';return;}
-  e.innerHTML=urgent.map(o=>{
+  const moreBtn=el('alarm-more');
+  if(!urgent.length){
+    e.innerHTML='<div class="alert alert-ok">✅ Semua kedai sudah dikunjungi minggu ini</div>';
+    if(moreBtn)moreBtn.style.display='none';
+    return;
+  }
+  const tampil=_showAllAlarm?urgent:urgent.slice(0,10);
+  e.innerHTML=tampil.map(o=>{
     const d=daysSince(o.last_visit);
     return`<div class="outlet-card">
       <div class="outlet-head">
@@ -480,131 +444,317 @@ function renderAlarm(){
       <div class="row"><span class="row-label">Stok di kedai</span><span>${o.stok} bungkus</span></div>
     </div>`;
   }).join('');
-}
-
-function renderVisitSelect(){
-  const sel=el('v-outlet');if(!sel)return;
-  const areaSel=el('v-area');
-  const selectedArea=areaSel?areaSel.value:'';
-  if(areaSel){
-    const areas=[...new Set(OUTLETS.map(o=>o.alamat||'').filter(a=>a))].sort();
-    const curArea=areaSel.value;
-    areaSel.innerHTML='<option value="">-- semua area --</option>'+
-      areas.map(a=>`<option value="${a}" ${curArea===a?'selected':''}>${a}</option>`).join('');
+  if(moreBtn)moreBtn.style.display=(!_showAllAlarm&&urgent.length>10)?'block':'none';
+  if(!_showAllAlarm&&urgent.length>10){
+    const sisa=urgent.length-10;
+    const txt=el('alarm-more')?.querySelector('button');
+    if(txt)txt.textContent=`Lihat ${sisa} kedai lainnya`;
   }
-  const cur=sel.value;
-  const filtered=OUTLETS.filter(o=>!selectedArea||o.alamat===selectedArea);
-  sel.innerHTML='<option value="">-- pilih warung --</option>'+
-    filtered.map(o=>`<option value="${o.id}" ${cur===o.id?'selected':''}>${o.nama}</option>`).join('');
 }
 
-function filterOutletByArea(){
-  const areaSel=el('v-area'),sel=el('v-outlet');
-  if(!sel||!areaSel)return;
-  const selectedArea=areaSel.value;
-  const filtered=OUTLETS.filter(o=>!selectedArea||o.alamat===selectedArea);
-  sel.innerHTML='<option value="">-- pilih warung --</option>'+
-    filtered.map(o=>`<option value="${o.id}">${o.nama}</option>`).join('');
-  el('prev-visit').classList.remove('show');
-  el('prev-v-info').style.display='none';
+// ─── MODE RUTE ────────────────────────────────────────────
+let RUTE_AKTIF = 0; // 0 = belum pilih rute
+let KEDAI_RUTE = []; // list kedai di rute aktif
+
+function renderPilihRute(){
+  const counts = [1,2,3,4].map(r=>({
+    rute:r,
+    total: OUTLETS.filter(o=>Number(o.rute)===r).length,
+    belum: OUTLETS.filter(o=>Number(o.rute)===r&&daysSince(o.last_visit)>=7).length
+  }));
+  const e=el('rute-list');
+  if(!e)return;
+  const labels={1:'Rute 1',2:'Rute 2',3:'Rute 3',4:'Rute 4'};
+  const colors={1:'#FFE8E8',2:'#E8F0FF',3:'#E8FFE8',4:'#FFF5E8'};
+  const dots={1:'#FF6B6B',2:'#4B9EFF',3:'#4CAF50',4:'#FF9800'};
+  e.innerHTML=counts.map(c=>`
+    <div onclick="pilihRute(${c.rute})" style="
+      background:${colors[c.rute]};border-radius:12px;padding:14px 16px;
+      margin-bottom:10px;cursor:pointer;border:2px solid transparent;
+      display:flex;justify-content:space-between;align-items:center;
+      transition:all 0.15s">
+      <div>
+        <div style="font-weight:700;font-size:15px;color:#1c1c1c">${labels[c.rute]}</div>
+        <div style="font-size:12px;color:#666;margin-top:2px">${c.total} kedai</div>
+      </div>
+      <div style="text-align:right">
+        ${c.belum>0
+          ?`<span style="background:#FF3B30;color:#fff;border-radius:20px;padding:3px 10px;font-size:12px;font-weight:600">${c.belum} belum</span>`
+          :`<span style="background:#34C759;color:#fff;border-radius:20px;padding:3px 10px;font-size:12px;font-weight:600">✓ Selesai</span>`
+        }
+      </div>
+    </div>`).join('');
 }
 
-function prevVisitOutlet(){
-  const id=v('v-outlet');
-  const info=el('prev-v-info');
-  if(!id){if(info)info.style.display='none';return;}
-  const o=OUTLETS.find(o=>o.id===id);
-  if(!o){if(info)info.style.display='none';return;}
-  setText('pvi-stok',o.stok+' bungkus');
-  const d=daysSince(o.last_visit);
-  setText('pvi-last',o.last_visit?o.last_visit+' ('+d+' hari lalu)':'Belum pernah');
-  setText('prev-v-nama',o.nama);
-  setText('prev-v-area',o.alamat||'-');
-  if(info)info.style.display='block';
-  calcVisit();
+function pilihRute(rute){
+  RUTE_AKTIF=rute;
+  _ruteSearch='';
+  const rs=el('rute-search');if(rs)rs.value='';
+  KEDAI_RUTE=OUTLETS.filter(o=>Number(o.rute)===rute).sort((a,b)=>{
+    // Belum dikunjungi duluan, lalu urutkan per area
+    const aLate=daysSince(a.last_visit)>=7?0:1;
+    const bLate=daysSince(b.last_visit)>=7?0:1;
+    if(aLate!==bLate)return aLate-bLate;
+    return (a.alamat||'').localeCompare(b.alamat||'');
+  });
+    renderModeRute();
 }
 
-function calcVisit(){
-  const id=v('v-outlet');
-  if(!id||v('v-sisa')===''){el('prev-visit').classList.remove('show');return;}
-  const o=OUTLETS.find(o=>o.id===id);
-  if(!o){el('prev-visit').classList.remove('show');return;}
-  const sisa=+v('v-sisa'),refill=+v('v-refill')||0,rusak=+v('v-rusak')||0;
-  const laku=Math.max(0,o.stok-sisa);
-  const returGudang=Math.max(0,sisa-rusak);
-  const omzet=laku*HARGA_JUAL,hpp=lastHPP(),laba=laku*(HARGA_JUAL-hpp);
-  setText('pv-laku',laku+' bungkus');
-  setText('pv-omzet',idr(omzet));
-  setText('pv-laba',idr(laba));
-  setText('pv-retur',returGudang+' bungkus balik ke gudang'+(rusak>0?' ('+rusak+' rusak dibuang)':''));
-  setText('pv-stok-baru',refill+' bungkus');
-  // Warning kalau gudang kosong tapi mau refill
-  const refillWarn=el('refill-warning');
-  if(refillWarn)refillWarn.style.display=(refill>0&&ST.gudang===0)?'block':'none';
-  el('prev-visit').classList.add('show');
+function backToPilihRute(){
+  RUTE_AKTIF=0;
+  KEDAI_RUTE=[];
+  renderModeNgampas();
 }
 
-async function simpanVisit(){
-  const id=v('v-outlet');
-  if(!id){toast('Pilih kedai dulu');return;}
-  if(v('v-sisa')===''){toast('Isi sisa bungkus');return;}
-  const o=OUTLETS.find(o=>o.id===id);
-  if(!o){toast('Outlet tidak ditemukan');return;}
-  const sisa=+v('v-sisa'),refill=+v('v-refill')||0,rusak=+v('v-rusak')||0;
-  const laku=Math.max(0,o.stok-sisa);
-  const omzet=laku*HARGA_JUAL,hpp=lastHPP(),laba=laku*(HARGA_JUAL-hpp);
-  const bayarKe=v('v-bayar-ke'),bayarNom=+v('v-bayar-nom')||0;
-  const tgl=v('v-tgl');
-  if(refill>0&&ST.gudang===0){
-    toast('⚠️ Stok Ilham kosong! Tidak bisa isi ulang.');
+function renderModeNgampas(){
+  const pilih=el('section-pilih-rute');
+  const mode=el('section-mode-rute');
+  if(RUTE_AKTIF===0){
+    if(pilih)pilih.style.display='block';
+    if(mode)mode.style.display='none';
+    renderPilihRute();
+  } else {
+    if(pilih)pilih.style.display='none';
+    if(mode)mode.style.display='block';
+    renderModeRute();
+  }
+}
+
+let _ruteSearch='';
+
+function searchRute(){
+  _ruteSearch=(el('rute-search')?.value||'').toLowerCase().trim();
+  renderModeRute();
+}
+
+function renderModeRute(){
+  const e=el('list-kedai-rute');
+  if(!e)return;
+  const labels={1:'Rute 1',2:'Rute 2',3:'Rute 3',4:'Rute 4'};
+  setText('rute-aktif-label',labels[RUTE_AKTIF]);
+
+  // Filter berdasarkan search
+  const list=_ruteSearch
+    ?KEDAI_RUTE.filter(o=>o.nama.toLowerCase().includes(_ruteSearch)||(o.alamat||'').toLowerCase().includes(_ruteSearch))
+    :KEDAI_RUTE;
+
+  // Progress dari SEMUA kedai rute (bukan filtered)
+  const sudah=KEDAI_RUTE.filter(o=>daysSince(o.last_visit)<7).length;
+  const pct=KEDAI_RUTE.length?Math.round(sudah/KEDAI_RUTE.length*100):0;
+  setText('rute-progress',`${sudah}/${KEDAI_RUTE.length} dikunjungi`);
+  const pb=el('rute-progress-bar');
+  if(pb)pb.style.width=pct+'%';
+
+  // Summary tunai hari ini dari VISITS rute ini
+  const visitHariIni=VISITS.filter(v=>{
+    const o=OUTLETS.find(o=>o.id===v.outlet_id);
+    return o&&Number(o.rute)===RUTE_AKTIF&&v.tgl===today();
+  });
+  const totalTunai=visitHariIni.reduce((s,v)=>s+(v.bayar_tunai||0),0);
+  const totalBon=visitHariIni.reduce((s,v)=>s+(v.bayar_bon||0),0);
+  const totalLaku=visitHariIni.reduce((s,v)=>s+(v.laku||0),0);
+  const summEl=el('rute-summary');
+  if(summEl){
+    if(visitHariIni.length>0){
+      summEl.style.display='block';
+      summEl.innerHTML=`
+        <div style="display:flex;gap:12px;font-size:12px">
+          <div><div style="color:var(--text3)">Laku</div><div style="font-weight:700">${totalLaku} bungkus</div></div>
+          <div><div style="color:var(--text3)">Tunai masuk</div><div style="font-weight:700;color:#34C759">${idr(totalTunai)}</div></div>
+          ${totalBon>0?`<div><div style="color:var(--text3)">Bon baru</div><div style="font-weight:700;color:#FF3B30">${idr(totalBon)}</div></div>`:''}
+        </div>`;
+    } else {
+      summEl.style.display='none';
+    }
+  }
+
+  // Kelompok per area
+  const areaMap={};
+  for(const o of list){
+    const a=o.alamat||'-';
+    if(!areaMap[a])areaMap[a]=[];
+    areaMap[a].push(o);
+  }
+
+  if(!list.length){
+    e.innerHTML=`<div class="empty">${_ruteSearch?'Tidak ada kedai yang cocok':'Belum ada kedai di rute ini'}</div>`;
     return;
   }
-  if(refill>ST.gudang){toast('Stok Ilham tidak cukup! (ada: '+ST.gudang+' bungkus)');return;}
-  const newStok=refill-rusak;
-  await sb('PATCH','outlets',{stok:newStok,last_visit:tgl,total_laku:(o.total_laku||0)+laku,total_omzet:(o.total_omzet||0)+omzet},'?id=eq.'+o.id);
-  const oIdx=OUTLETS.findIndex(x=>x.id===id);
-  if(oIdx>=0)OUTLETS[oIdx]={...o,stok:newStok,last_visit:tgl,total_laku:(o.total_laku||0)+laku,total_omzet:(o.total_omzet||0)+omzet};
-  const visitRow={outlet_id:o.id,outlet_nama:o.nama,stok_awal:o.stok,sisa,laku,refill,rusak,omzet,laba,hpp,bayar_ke:bayarKe,bayar_nom:bayarNom,tgl};
+
+  e.innerHTML=Object.entries(areaMap).sort().map(([area,kedais])=>`
+    <div style="margin-bottom:12px">
+      <div style="font-size:11px;font-weight:700;color:var(--text3);letter-spacing:0.5px;
+        padding:4px 0;border-bottom:1px solid var(--border);margin-bottom:6px">
+        📍 ${area}
+      </div>
+      ${kedais.map(o=>{
+        const sudahVisit=daysSince(o.last_visit)<7;
+        const hasBon=(o.piutang||0)>0;
+        return`<div onclick="bukaModalVisit('${o.id}')" style="
+          display:flex;justify-content:space-between;align-items:center;
+          padding:10px 12px;border-radius:10px;margin-bottom:6px;cursor:pointer;
+          background:${sudahVisit?'var(--bg)':'#fff'};
+          border:1.5px solid ${sudahVisit?'var(--border)':'#E0E0E0'};
+          opacity:${sudahVisit?'0.6':'1'}">
+          <div>
+            <div style="font-weight:600;font-size:13px;color:${sudahVisit?'var(--text3)':'var(--text)'}">${o.nama}</div>
+            <div style="font-size:11px;color:var(--text3);margin-top:1px">
+              Stok: ${o.stok} bungkus
+              ${hasBon?`<span style="color:#FF3B30;font-weight:600"> · ⚠️ Bon ${idr(o.piutang)}</span>`:''}
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px">
+            ${sudahVisit
+              ?'<span style="color:#34C759;font-size:18px">✓</span>'
+              :'<span style="color:#ccc;font-size:16px">›</span>'
+            }
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`).join('');
+}
+
+// ─── MODAL VISIT ──────────────────────────────────────────
+let VISIT_OUTLET_ID = null;
+
+function bukaModalVisit(outletId){
+  VISIT_OUTLET_ID=outletId;
+  const o=OUTLETS.find(o=>o.id===outletId);
+  if(!o)return;
+  setText('mv-nama',o.nama);
+  setText('mv-area',o.alamat||'-');
+  setText('mv-stok',o.stok+' bungkus');
+  setText('mv-last',o.last_visit?o.last_visit+' ('+daysSince(o.last_visit)+' hari lalu)':'Belum pernah');
+  const bonRow=el('mv-bon-row');
+  if(bonRow)bonRow.style.display=(o.piutang||0)>0?'flex':'none';
+  setText('mv-bon',idr(o.piutang||0));
+  const bayarBonRow=el('mv-bayar-bon-lama-row');
+  if(bayarBonRow)bayarBonRow.style.display=(o.piutang||0)>0?'block':'none';
+  setv('mv-sisa','');setv('mv-refill','');setv('mv-tunai','');setv('mv-bon-lama','');setv('mv-rusak','0');
+  el('mv-preview').style.display='none';
+  setv('mv-tgl',today());
+  openModal('modal-visit');
+}
+
+function calcModalVisit(){
+  const o=OUTLETS.find(o=>o.id===VISIT_OUTLET_ID);
+  if(!o||v('mv-sisa')===''){el('mv-preview').style.display='none';return;}
+  const sisa=+v('mv-sisa'),refill=+v('mv-refill')||0,rusak=+v('mv-rusak')||0;
+  const laku=Math.max(0,o.stok-sisa);
+  const omzet=laku*HARGA_JUAL,hpp=lastHPP(),laba=laku*(HARGA_JUAL-hpp);
+  const tunai=Math.min(+v('mv-tunai')||0,omzet);
+  const bon=omzet-tunai;
+  setText('mv-laku',laku+' bungkus');
+  setText('mv-omzet',idr(omzet));
+  setText('mv-tunai-preview',idr(tunai));
+  setText('mv-bon-preview',bon>0?idr(bon):'Rp0');
+  el('mv-preview').style.display='block';
+}
+
+async function simpanModalVisit(){
+  const o=OUTLETS.find(o=>o.id===VISIT_OUTLET_ID);
+  if(!o){toast('Outlet tidak ditemukan');return;}
+  if(v('mv-sisa')===''){toast('Isi sisa bungkus dulu');return;}
+  const sisa=+v('mv-sisa'),refill=+v('mv-refill')||0,rusak=+v('mv-rusak')||0;
+  const laku=Math.max(0,o.stok-sisa);
+  const omzet=laku*HARGA_JUAL,hpp=lastHPP(),laba=laku*(HARGA_JUAL-hpp);
+  const bayarTunai=Math.min(+v('mv-tunai')||0,omzet);
+  const bayarBon=omzet-bayarTunai;
+  const bayarBonLama=Math.min(+v('mv-bon-lama')||0,o.piutang||0);
+  const tgl=v('mv-tgl')||today();
+  if(refill>ST.gudang){toast('Stok gudang tidak cukup! (ada: '+ST.gudang+' bungkus)');return;}
+  const newStok=refill>0?refill:sisa-rusak;
+  const newPiutang=Math.max(0,(o.piutang||0)-bayarBonLama)+bayarBon;
+  await sb('PATCH','outlets',{
+    stok:newStok,last_visit:tgl,
+    total_laku:(o.total_laku||0)+laku,
+    total_omzet:(o.total_omzet||0)+omzet,
+    piutang:newPiutang
+  },'?id=eq.'+o.id);
+  const oIdx=OUTLETS.findIndex(x=>x.id===o.id);
+  if(oIdx>=0)OUTLETS[oIdx]={...o,stok:newStok,last_visit:tgl,
+    total_laku:(o.total_laku||0)+laku,
+    total_omzet:(o.total_omzet||0)+omzet,
+    piutang:newPiutang};
+  const visitRow={outlet_id:o.id,outlet_nama:o.nama,stok_awal:o.stok,
+    sisa,laku,refill,rusak,omzet,laba,hpp,
+    bayar_tunai:bayarTunai,bayar_bon:bayarBon,bayar_bon_lama:bayarBonLama,tgl};
   const res=await sb('POST','visits',visitRow);
   if(res&&res.length)VISITS.unshift(res[0]);else VISITS.unshift(visitRow);
+  const totalKasMasuk=bayarTunai+bayarBonLama;
   const stPatch={
-    gudang:ST.gudang-refill+(sisa-rusak),
+    gudang:ST.gudang-refill+(refill>0?sisa-rusak:0),
     total_omzet:ST.total_omzet+omzet,total_hpp:ST.total_hpp+laku*hpp,
     laba_akum:ST.laba_akum+laba,laba_u:ST.laba_u+laba,
-    week_omzet:ST.week_omzet+omzet,week_laba:ST.week_laba+laba
+    week_omzet:ST.week_omzet+omzet,week_laba:ST.week_laba+laba,
+    kas:ST.kas+totalKasMasuk,
+    piutang:Math.max(0,ST.piutang-bayarBonLama)+bayarBon
   };
-  if(bayarKe==='kas')stPatch.kas=ST.kas+bayarNom;
-  else if(bayarKe==='bank')stPatch.bank=ST.bank+bayarNom;
-  else if(bayarKe==='bon')stPatch.piutang=ST.piutang+bayarNom;
   await saveState(stPatch);
-  await addJurnal('visit',`Kunjungan ${o.nama}: ${laku} terjual | pemasukan ${idr(omzet,true)} | refill ${refill}`,tgl);
-  setv('v-sisa','');setv('v-refill','');setv('v-bayar-nom','');setv('v-rusak','0');
-  el('prev-visit').classList.remove('show');
-  el('prev-v-info').style.display='none';
-  setv('v-area','');
-  renderVisitSelect();
-  toast(`✅ Kunjungan ${o.nama}: ${laku} bungkus laku`);
+  await addJurnal('visit',`Kunjungan ${o.nama}: ${laku} terjual | tunai ${idr(totalKasMasuk,true)} | bon ${idr(bayarBon,true)} | refill ${refill}`,tgl);
+  closeModal('modal-visit');
+  toast(`✅ ${o.nama}: ${laku} laku`);
+  renderModeRute();
   renderAll();
 }
 
-async function hapusVisit(id,laku,omzet,laba,hpp,bayarKe,bayarNom,refill,sisa,rusak,outletId,stokLama){
+async function cekDoangModal(){
+  const o=OUTLETS.find(o=>o.id===VISIT_OUTLET_ID);
+  if(!o)return;
+  const tgl=v('mv-tgl')||today();
+  await sb('PATCH','outlets',{last_visit:tgl},'?id=eq.'+o.id);
+  const oIdx=OUTLETS.findIndex(x=>x.id===o.id);
+  if(oIdx>=0)OUTLETS[oIdx]={...o,last_visit:tgl};
+  const visitRow={outlet_id:o.id,outlet_nama:o.nama,stok_awal:o.stok,
+    sisa:o.stok,laku:0,refill:0,rusak:0,omzet:0,laba:0,hpp:0,
+    bayar_tunai:0,bayar_bon:0,tgl};
+  const resC=await sb('POST','visits',visitRow);
+  if(resC&&resC.length)VISITS.unshift(resC[0]);else VISITS.unshift(visitRow);
+  await addJurnal('visit',`Kunjungan cek: ${o.nama}`,tgl);
+  closeModal('modal-visit');
+  toast(`📍 ${o.nama} ditandai dikunjungi`);
+  renderModeRute();
+}
+
+function renderVisitSelect(){
+  // Legacy - tidak dipakai di mode rute, tapi dipertahankan untuk kompatibilitas
+}
+
+
+
+
+
+async function hapusVisit(id,laku,omzet,laba,hpp,bayarTunai,bayarBon,refill,sisa,rusak,outletId,stokLama){
   if(!confirm('Hapus data visit ini? Stok & keuangan akan dibalikkan.'))return;
+  // Cari visit sebelumnya untuk restore last_visit
+  const visitSebelum=VISITS.filter(v=>v.outlet_id===outletId&&v.id!==id).sort((a,b)=>new Date(b.tgl)-new Date(a.tgl));
+  const lastVisitSebelum=visitSebelum.length?visitSebelum[0].tgl:null;
   await sb('DELETE','visits',null,'?id=eq.'+id);
   VISITS=VISITS.filter(v=>v.id!==id);
   const o=OUTLETS.find(o=>o.id===outletId);
   if(o){
-    await sb('PATCH','outlets',{stok:stokLama,total_laku:Math.max(0,(o.total_laku||0)-laku),total_omzet:Math.max(0,(o.total_omzet||0)-omzet)},'?id=eq.'+outletId);
-    o.stok=stokLama;o.total_laku=Math.max(0,(o.total_laku||0)-laku);o.total_omzet=Math.max(0,(o.total_omzet||0)-omzet);
+    const newPiutang=Math.max(0,(o.piutang||0)-bayarBon);
+    await sb('PATCH','outlets',{
+      stok:stokLama,
+      piutang:newPiutang,
+      last_visit:lastVisitSebelum,
+      total_laku:Math.max(0,(o.total_laku||0)-laku),
+      total_omzet:Math.max(0,(o.total_omzet||0)-omzet)
+    },'?id=eq.'+outletId);
+    o.stok=stokLama;o.piutang=newPiutang;o.last_visit=lastVisitSebelum;
+    o.total_laku=Math.max(0,(o.total_laku||0)-laku);
+    o.total_omzet=Math.max(0,(o.total_omzet||0)-omzet);
   }
+  const balikGudang=refill>0?sisa-rusak:0;
+  const totalKasBerkurang=bayarTunai;
   const stPatch={
-    gudang:ST.gudang+refill-sisa+rusak,
+    gudang:ST.gudang+refill-balikGudang,
+    kas:Math.max(0,ST.kas-totalKasBerkurang),
+    piutang:Math.max(0,ST.piutang-bayarBon),
     total_omzet:Math.max(0,ST.total_omzet-omzet),
     laba_akum:Math.max(0,ST.laba_akum-laba),laba_u:Math.max(0,ST.laba_u-laba),
     week_omzet:Math.max(0,ST.week_omzet-omzet),week_laba:Math.max(0,ST.week_laba-laba)
   };
-  if(bayarKe==='kas')stPatch.kas=ST.kas-bayarNom;
-  else if(bayarKe==='bank')stPatch.bank=ST.bank-bayarNom;
-  else if(bayarKe==='bon')stPatch.piutang=Math.max(0,ST.piutang-bayarNom);
   await saveState(stPatch);
   toast('✅ Kunjungan dihapus & data dibalikkan');renderAll();
 }
@@ -641,8 +791,10 @@ function renderListVisit(){
       <div class="row"><span class="row-label">Sisa balik gudang</span><span>${v.sisa} bungkus</span></div>
       <div class="row"><span class="row-label">Isi ulang</span><span>${v.refill} bungkus</span></div>
       ${v.rusak?`<div class="row"><span class="row-label">Rusak</span><span class="tr">${v.rusak} bungkus</span></div>`:''}
-      <div class="row"><span class="row-label">Bayar</span><span>${idr(v.bayar_nom)} → ${v.bayar_ke==='bon'?'bon':v.bayar_ke}</span></div>
-      ${ROLE==='owner'?`<button class="btn btn-danger btn-sm" style="margin-top:6px" onclick="hapusVisit('${v.id}',${v.laku},${v.omzet},${v.laba},${v.hpp},'${v.bayar_ke}',${v.bayar_nom},${v.refill},${v.sisa},${v.rusak||0},'${v.outlet_id}',${v.stok_awal})">🗑 Hapus Visit</button>`:''}
+      ${v.laku===0&&v.omzet===0?'<div style="margin:4px 0"><span class="badge" style="background:var(--blue-bg);color:var(--blue);padding:2px 8px;border-radius:8px;font-size:11px">👁 Kunjungan Cek</span></div>':''}
+      ${v.bayar_tunai>0?`<div class="row"><span class="row-label">Bayar Tunai</span><span class="tg">${idr(v.bayar_tunai)}</span></div>`:''}
+      ${v.bayar_bon>0?`<div class="row"><span class="row-label">Bon</span><span class="tr">${idr(v.bayar_bon)}</span></div>`:''}
+      ${ROLE==='owner'?`<button class="btn btn-danger btn-sm" style="margin-top:6px" onclick="hapusVisit('${v.id}',${v.laku},${v.omzet},${v.laba},${v.hpp},${v.bayar_tunai||0},${v.bayar_bon||0},${v.refill},${v.sisa},${v.rusak||0},'${v.outlet_id}',${v.stok_awal})">🗑 Hapus Visit</button>`:''}
     </div>`).join('');
 }
 
@@ -973,6 +1125,60 @@ async function setorKas(){
   setv('sk-nom','');setv('sk-ket','');
   closeModal('modal-setor-kas');
   toast('✅ Kas +'+idr(nom,true));renderAll();
+}
+
+// ─── DAFTAR BON ───────────────────────────────────────────
+function renderDaftarBon(){
+  const list=OUTLETS.filter(o=>(o.piutang||0)>0).sort((a,b)=>b.piutang-a.piutang);
+  const el2=el('list-daftar-bon');
+  if(!el2)return;
+  if(!list.length){el2.innerHTML='<div class="empty">Tidak ada bon belum lunas 🎉</div>';return;}
+  el2.innerHTML=list.map(o=>`
+    <div class="row" style="padding:8px 0;border-bottom:0.5px solid var(--border)">
+      <div>
+        <div class="tb" style="font-size:13px">${o.nama}</div>
+        <div style="font-size:11px;color:var(--text3)">${o.alamat||'-'}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="tr tb">${idr(o.piutang)}</span>
+        <button class="btn btn-sm" style="font-size:11px" onclick="lunasiBonn('${o.id}','${o.nama}',${o.piutang})">Lunasi</button>
+      </div>
+    </div>`).join('');
+  const total=list.reduce((s,o)=>s+(o.piutang||0),0);
+  setText('total-daftar-bon',idr(total));
+}
+
+
+// ─── LUNASI BON ───────────────────────────────────────────
+let _lunasiOutletId=null,_lunasiOutletNama=null,_lunasiBonAda=0;
+
+function lunasiBonn(outletId,outletNama,bonAda){
+  _lunasiOutletId=outletId;
+  _lunasiOutletNama=outletNama;
+  _lunasiBonAda=bonAda;
+  setText('lunasi-nama',outletNama);
+  setText('lunasi-ada',idr(bonAda));
+  setv('lunasi-nom','');
+  openModal('modal-lunasi-bon');
+}
+
+async function konfirmasiLunasi(){
+  const nom=+v('lunasi-nom');
+  if(!nom||nom<=0){toast('Isi nominal');return;}
+  if(nom>_lunasiBonAda){toast('Melebihi bon yang ada: '+idr(_lunasiBonAda));return;}
+  if(ST.kas<nom){toast('Kas tidak cukup: '+idr(ST.kas));return;}
+  const o=OUTLETS.find(o=>o.id===_lunasiOutletId);
+  if(!o)return;
+  const newPiutang=Math.max(0,(o.piutang||0)-nom);
+  await sb('PATCH','outlets',{piutang:newPiutang},'?id=eq.'+_lunasiOutletId);
+  const oIdx=OUTLETS.findIndex(x=>x.id===_lunasiOutletId);
+  if(oIdx>=0)OUTLETS[oIdx]={...o,piutang:newPiutang};
+  await saveState({kas:ST.kas+nom,piutang:Math.max(0,ST.piutang-nom)});
+  await addJurnal('kas',`Lunasi bon ${_lunasiOutletNama}: +${idr(nom,true)}`,today());
+  closeModal('modal-lunasi-bon');
+  toast('✅ Bon '+_lunasiOutletNama+' dilunasi '+idr(nom));
+  renderDaftarBon();
+  renderAll();
 }
 
 // ─── KASBON ───────────────────────────────────────────────
