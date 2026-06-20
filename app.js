@@ -1023,7 +1023,8 @@ function renderListVisit(){
       ${v.laku===0&&v.omzet===0?'<div style="margin:4px 0"><span class="badge" style="background:var(--blue-bg);color:var(--blue);padding:2px 8px;border-radius:8px;font-size:11px">👁 Kunjungan Cek</span></div>':''}
       ${v.bayar_tunai>0?`<div class="row"><span class="row-label">Bayar Tunai</span><span class="tg">${idr(v.bayar_tunai)}</span></div>`:''}
       ${v.bayar_bon>0?`<div class="row"><span class="row-label">Bon</span><span class="tr">${idr(v.bayar_bon)}</span></div>`:''}
-      ${(v.tf_mandiri||0)>0?`<div class="row"><span class="row-label">🏦 Sudah TF Mandiri</span><span class="tb" style="color:#2563eb">${idr(v.tf_mandiri)}</span></div>`:''}
+      ${(v.tf_mandiri||0)>0?`<div class="row"><span class="row-label">🏦 Sudah TF Mandiri</span><span class="tb" style="color:#2563eb">${idr(v.tf_mandiri)}</span></div>
+      <button class="btn btn-sm" style="margin-top:6px;background:#fef3c7;color:#92400e;border:1px solid #fde68a" onclick="batalkanTF('${v.id}')">↩️ Batalkan TF (balik ke kas)</button>`:''}
       ${v.bayar_tunai>0&&(v.tf_mandiri||0)<v.bayar_tunai?`<button class="btn btn-sm" style="margin-top:6px;background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe" onclick="bukaKonversiTF('${v.id}')">🏦 Konversi ke TF Mandiri</button>`:''}
       ${ROLE==='owner'?`<button class="btn btn-danger btn-sm" style="margin-top:6px" onclick="hapusVisit('${v.id}',${v.laku},${v.omzet},${v.laba},${v.hpp},${v.bayar_tunai||0},${v.bayar_bon||0},${v.refill},${v.sisa},${v.rusak||0},'${v.outlet_id}',${v.stok_awal})">🗑 Hapus Visit</button>`:''}
     </div>`).join('')
@@ -1068,6 +1069,26 @@ async function konfirmasiKonversiTF(){
   await addJurnal('kas',`Terima TF Mandiri ${vis.outlet_nama}: dari kas ${idr(nom,true)}`,today(),{akun:'bank',masuk:nom});
   closeModal('modal-konversi-tf');
   toast('✅ '+idr(nom)+' dipindah ke Mandiri');
+  renderListVisit();
+  renderNeraca();
+}
+
+async function batalkanTF(visitId){
+  const vis=VISITS.find(x=>x.id===visitId);
+  if(!vis){toast('Visit tidak ditemukan');return;}
+  const sudahTF=vis.tf_mandiri||0;
+  if(sudahTF<=0){toast('Visit ini tidak ada TF Mandiri');return;}
+  if(ST.bank<sudahTF){toast('Saldo Mandiri tidak cukup untuk dibalikin: '+idr(ST.bank));return;}
+  if(!confirm(`Batalkan TF Mandiri ${vis.outlet_nama}?\n\n${idr(sudahTF)} akan dikembalikan:\nMandiri -${idr(sudahTF)} → Kas +${idr(sudahTF)}\n\nLanjut?`))return;
+  // Reset tf_mandiri visit jadi 0
+  await sb('PATCH','visits',{tf_mandiri:0},'?id=eq.'+visitId);
+  const vIdx=VISITS.findIndex(x=>x.id===visitId);
+  if(vIdx>=0)VISITS[vIdx]={...vis,tf_mandiri:0};
+  // Mandiri berkurang, kas balik
+  await saveState({bank:ST.bank-sudahTF,kas:ST.kas+sudahTF});
+  await addJurnal('kas',`Batal TF Mandiri ${vis.outlet_nama}: Mandiri -${idr(sudahTF,true)} → Kas +${idr(sudahTF,true)}`,today(),{akun:'bank',keluar:sudahTF});
+  await addJurnal('kas',`Kas kembali dari batal TF ${vis.outlet_nama}: +${idr(sudahTF,true)}`,today(),{akun:'kas',masuk:sudahTF});
+  toast('✅ TF dibatalkan, '+idr(sudahTF)+' kembali ke kas');
   renderListVisit();
   renderNeraca();
 }
