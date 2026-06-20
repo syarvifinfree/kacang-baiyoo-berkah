@@ -13,6 +13,8 @@ let ST = {
   utang_owner:0,utang_upah:0
 };
 let OUTLETS=[],PRODUKSI=[],VISITS=[],KASBON=[],CLOSING=[],JURNAL=[];
+let _visitLimit=30;
+let _ruteSearch='';
 
 // ─── SUPABASE ─────────────────────────────────────────────
 async function sb(method,table,body=null,query=''){
@@ -75,10 +77,90 @@ function openModal(id){el(id).classList.add('open');}
 function closeModal(id){el(id).classList.remove('open');}
 function closeModalOut(e,id){if(e.target.id===id)closeModal(id);}
 
-async function addJurnal(tipe,ket,tgl=null){
+async function addJurnal(tipe,ket,tgl=null,mutasi=null){
+  // mutasi (opsional): {akun:'kas'|'bank', masuk:0, keluar:0}
   const row={tipe,keterangan:ket,tgl:tgl||today()};
+  if(mutasi){
+    row.akun=mutasi.akun||null;
+    row.masuk=mutasi.masuk||0;
+    row.keluar=mutasi.keluar||0;
+  }
   await sb('POST','jurnal',row);
   JURNAL.unshift(row);
+}
+
+// ─── RIWAYAT MUTASI KAS / BANK ────────────────────────────
+let _mutasiAkun='kas';
+
+function bukaRiwayatMutasi(akun){
+  _mutasiAkun=akun||'kas';
+  openModal('modal-mutasi');
+  switchMutasiTab(_mutasiAkun);
+}
+
+function switchMutasiTab(akun){
+  _mutasiAkun=akun;
+  const kasBtn=el('mut-tab-kas'),bankBtn=el('mut-tab-bank');
+  if(kasBtn){
+    kasBtn.style.borderBottomColor=akun==='kas'?'var(--text)':'transparent';
+    kasBtn.style.color=akun==='kas'?'var(--text)':'var(--text3)';
+    kasBtn.style.fontWeight=akun==='kas'?'600':'500';
+  }
+  if(bankBtn){
+    bankBtn.style.borderBottomColor=akun==='bank'?'var(--text)':'transparent';
+    bankBtn.style.color=akun==='bank'?'var(--text)':'var(--text3)';
+    bankBtn.style.fontWeight=akun==='bank'?'600':'500';
+  }
+  setText('mut-title',akun==='kas'?'💵 Riwayat Uang Kas':'🏦 Riwayat Bank Mandiri');
+  setText('mut-saldo',idr(akun==='kas'?ST.kas:ST.bank));
+  renderMutasi();
+}
+
+function renderMutasi(){
+  const e=el('mut-list');
+  if(!e)return;
+  const akun=_mutasiAkun;
+  const saldoNow=akun==='kas'?ST.kas:ST.bank;
+  // Filter: pakai field akun kalau ada, fallback ke deteksi teks untuk jurnal lama
+  const list=JURNAL.filter(j=>{
+    if(j.akun!==undefined&&j.akun!==null)return j.akun===akun;
+    // Fallback jurnal lama (tanpa field akun)
+    const t=(j.tipe||'').toLowerCase(), k=(j.keterangan||'').toLowerCase();
+    if(akun==='kas')return ['kas','visit','closing','setup'].includes(t)&&!k.includes('dari bank')&&!k.includes('→ mandiri');
+    return k.includes('mandiri')||k.includes('dari bank')||k.includes('tf');
+  });
+  if(!list.length){
+    e.innerHTML='<div class="alert alert-info">Belum ada transaksi</div>';
+    return;
+  }
+  // Hitung saldo berjalan: mulai dari saldo sekarang, mundur ke belakang
+  // JURNAL urut terbaru dulu. Saldo setelah transaksi teratas = saldoNow.
+  let saldoBerjalan=saldoNow;
+  const rows=[];
+  for(const j of list){
+    const masuk=j.masuk||0, keluar=j.keluar||0;
+    const saldoSetelah=saldoBerjalan;  // saldo SETELAH transaksi ini
+    rows.push({j,masuk,keluar,saldo:saldoSetelah});
+    // Mundur: saldo sebelum transaksi ini = saldo setelah - masuk + keluar
+    saldoBerjalan=saldoBerjalan-masuk+keluar;
+  }
+  e.innerHTML=rows.map(r=>{
+    const j=r.j, k=j.keterangan||'';
+    const punyaMutasi=(r.masuk>0||r.keluar>0);
+    let badge='';
+    if(r.masuk>0)badge=`<span style="font-size:12px;font-weight:700;color:#16a34a;white-space:nowrap">+${idr(r.masuk)}</span>`;
+    else if(r.keluar>0)badge=`<span style="font-size:12px;font-weight:700;color:#dc2626;white-space:nowrap">−${idr(r.keluar)}</span>`;
+    else badge=`<span style="font-size:10px;color:#9ca3af;white-space:nowrap">catatan</span>`;
+    return `<div style="padding:10px 0;border-bottom:1px solid var(--border)">
+      <div style="display:flex;justify-content:space-between;align-items:start;gap:8px">
+        <div style="flex:1">
+          <div style="font-size:13px;color:var(--text);line-height:1.4">${k}</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:2px">${j.tgl||''}${punyaMutasi?' · saldo '+idr(r.saldo):''}</div>
+        </div>
+        ${badge}
+      </div>
+    </div>`;
+  }).join('');
 }
 
 // ─── LOGIN ────────────────────────────────────────────────
@@ -137,12 +219,11 @@ async function loadAll(){
   try{
     await getState();
     OUTLETS=await sb('GET','outlets',null,'?order=created_at.asc')||[];
-    PRODUKSI=await sb('GET','produksi',null,'?order=created_at.desc&limit=20')||[];
-    // Ambil 300 visit terbaru (cukup untuk riwayat & summary)
-    VISITS=await sb('GET','visits',null,'?order=created_at.desc&limit=300')||[];
+    PRODUKSI=await sb('GET','produksi',null,'?order=created_at.desc&limit=50')||[];
+    VISITS=await sb('GET','visits',null,'?order=created_at.desc&limit=2000')||[];
     KASBON=await sb('GET','kasbon',null,'?order=created_at.desc')||[];
-    CLOSING=await sb('GET','closing',null,'?order=created_at.desc&limit=10')||[];
-    JURNAL=await sb('GET','jurnal',null,'?order=created_at.desc&limit=100')||[];
+    CLOSING=await sb('GET','closing',null,'?order=created_at.desc&limit=50')||[];
+    JURNAL=await sb('GET','jurnal',null,'?order=created_at.desc&limit=2000')||[];
     // Sinkronkan ST.piutang dengan total piutang real semua outlet
     const piutangReal=OUTLETS.reduce((s,o)=>s+(o.piutang||0),0);
     if(ST.piutang!==piutangReal){
@@ -180,6 +261,7 @@ function outletPiutangTotal(){return OUTLETS.reduce((s,o)=>s+(o.piutang||0),0);}
 function renderNeraca(){
   setText('n-kas',idr(ST.kas,true));setText('n-bank',idr(ST.bank,true));
   setText('n-kal',ST.stok_kal+' kaleng');setText('n-gudang',ST.gudang+' bungkus');
+  setText('kg-app',ST.gudang+' bungkus');
   setText('n-outlet-stok',outletStokTotal()+' bungkus');
   const piutangReal=outletPiutangTotal();
   setText('n-piutang',idr(piutangReal,true));setText('n-hsup',idr(ST.hutang_sup,true));
@@ -288,6 +370,22 @@ async function simpanProduksi(){
   renderAll();
 }
 
+async function koreksiGudang(){
+  if(ROLE!=='owner'){toast('Hanya owner');return;}
+  const fisikStr=v('kg-fisik');
+  if(fisikStr===''){toast('Isi stok gudang fisik dulu');return;}
+  const fisik=parseInt(fisikStr);
+  if(isNaN(fisik)||fisik<0){toast('Angka tidak valid');return;}
+  const selisih=fisik-ST.gudang;
+  if(selisih===0){toast('Stok app sudah sama dengan fisik');return;}
+  if(!confirm(`Koreksi stok gudang:\n${ST.gudang} (app) → ${fisik} (fisik)\nSelisih: ${selisih>0?'+':''}${selisih} bungkus\n\nLanjut?`))return;
+  await saveState({gudang:fisik});
+  await addJurnal('produksi',`Koreksi gudang (stok opname): ${ST.gudang} → ${fisik} bungkus (selisih ${selisih>0?'+':''}${selisih})`,today());
+  setv('kg-fisik','');
+  toast('✅ Stok gudang dikoreksi jadi '+fisik+' bungkus');
+  renderAll();
+}
+
 async function hapusProduksi(id,kal,bungkus,upah,upahLunas){
   if(!confirm('Hapus data produksi ini?'))return;
   const p=PRODUKSI.find(p=>p.id===id);
@@ -322,8 +420,9 @@ async function bayarUpah(id,bungkus,upahPerBungkus){
   }
   await sb('PATCH','produksi',{upah_lunas:true},'?id=eq.'+id);
   const p=PRODUKSI.find(p=>p.id===id);if(p)p.upah_lunas=true;
+  const upahDariKas=Math.min(ST.kas,totUpah);
   await saveState(patch);
-  await addJurnal('kas',`Bayar upah packing ${bungkus} bungkus: ${idr(totUpah)}`);
+  await addJurnal('kas',`Bayar upah packing ${bungkus} bungkus: ${idr(totUpah)}`,null,upahDariKas>0?{akun:'kas',keluar:upahDariKas}:null);
   toast('✅ Upah dibayar: '+idr(totUpah));renderAll();
 }
 
@@ -450,7 +549,7 @@ function switchVisitTab(tab){
   el('tab-riwayat-btn').style.borderBottomColor = tab==='riwayat'?'var(--text)':'transparent';
   el('tab-riwayat-btn').style.color = tab==='riwayat'?'var(--text)':'var(--text3)';
   el('tab-riwayat-btn').style.fontWeight = tab==='riwayat'?'600':'500';
-  if(tab==='riwayat') renderListVisit();
+  if(tab==='riwayat'){_visitLimit=30;renderListVisit();}
 }
 
 
@@ -504,22 +603,36 @@ function renderPilihRute(){
   const colors={1:'#FFE8E8',2:'#E8F0FF',3:'#E8FFE8',4:'#FFF5E8'};
   const dots={1:'#FF6B6B',2:'#4B9EFF',3:'#4CAF50',4:'#FF9800'};
   e.innerHTML=counts.map(c=>`
-    <div onclick="pilihRute(${c.rute})" style="
+    <div style="
       background:${colors[c.rute]};border-radius:12px;padding:14px 16px;
-      margin-bottom:10px;cursor:pointer;border:2px solid transparent;
-      display:flex;justify-content:space-between;align-items:center;
+      margin-bottom:10px;border:2px solid transparent;
       transition:all 0.15s">
-      <div>
-        <div style="font-weight:700;font-size:15px;color:#1c1c1c">${labels[c.rute]}</div>
-        <div style="font-size:12px;color:#666;margin-top:2px">${c.total} kedai</div>
+      <div onclick="pilihRute(${c.rute})" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer">
+        <div>
+          <div style="font-weight:700;font-size:15px;color:#1c1c1c">${labels[c.rute]}</div>
+          <div style="font-size:12px;color:#666;margin-top:2px">${c.total} kedai</div>
+        </div>
+        <div style="text-align:right">
+          ${c.belum>0
+            ?`<span style="background:#FF3B30;color:#fff;border-radius:20px;padding:3px 10px;font-size:12px;font-weight:600">${c.belum} belum</span>`
+            :`<span style="background:#34C759;color:#fff;border-radius:20px;padding:3px 10px;font-size:12px;font-weight:600">✓ Selesai</span>`
+          }
+        </div>
       </div>
-      <div style="text-align:right">
-        ${c.belum>0
-          ?`<span style="background:#FF3B30;color:#fff;border-radius:20px;padding:3px 10px;font-size:12px;font-weight:600">${c.belum} belum</span>`
-          :`<span style="background:#34C759;color:#fff;border-radius:20px;padding:3px 10px;font-size:12px;font-weight:600">✓ Selesai</span>`
-        }
-      </div>
+      ${c.belum<c.total?`<button onclick="event.stopPropagation();putaranBaru(${c.rute})" style="margin-top:10px;width:100%;background:rgba(255,255,255,0.7);border:1px solid rgba(0,0,0,0.1);border-radius:8px;padding:7px;font-size:12px;font-weight:600;color:#555;cursor:pointer">🔄 Mulai Putaran Baru (reset jadi belum)</button>`:''}
     </div>`).join('');
+}
+
+async function putaranBaru(rute){
+  const labels={1:'Rute 1',2:'Rute 2',3:'Rute 3',4:'Rute 4'};
+  const kedaiRute=OUTLETS.filter(o=>Number(o.rute)===rute);
+  if(!confirm(`Mulai putaran baru ${labels[rute]}?\n\n${kedaiRute.length} kedai akan direset jadi "belum dikunjungi".\nStok & uang TIDAK berubah.`))return;
+  // Reset last_visit semua kedai di rute ini
+  await sb('PATCH','outlets',{last_visit:null},'?rute=eq.'+rute);
+  kedaiRute.forEach(o=>{o.last_visit=null;});
+  await addJurnal('outlet',`Mulai putaran baru ${labels[rute]}: ${kedaiRute.length} kedai direset`,today());
+  toast(`✅ ${labels[rute]}: putaran baru dimulai`);
+  renderModeNgampas();
 }
 
 function pilihRute(rute){
@@ -555,8 +668,6 @@ function renderModeNgampas(){
     renderModeRute();
   }
 }
-
-let _ruteSearch='';
 
 function searchRute(){
   _ruteSearch=(el('rute-search')?.value||'').toLowerCase().trim();
@@ -788,7 +899,7 @@ async function simpanModalVisit(){
       piutang:outletPiutangTotal()
     };
     await saveState(stPatch);
-    await addJurnal('visit',`Kunjungan ${o.nama}: ${laku} terjual | tunai ${idr(totalKasMasuk,true)} | bon ${idr(bayarBon,true)} | refill ${refill}`,tgl);
+    await addJurnal('visit',`Kunjungan ${o.nama}: ${laku} terjual | tunai ${idr(totalKasMasuk,true)} | bon ${idr(bayarBon,true)} | refill ${refill}`,tgl,totalKasMasuk>0?{akun:'kas',masuk:totalKasMasuk}:null);
     closeModal('modal-visit');
     toast(`✅ ${o.nama}: ${laku} laku`);
     renderModeRute();
@@ -900,7 +1011,8 @@ function renderListVisit(){
   if(rvSearch) filteredVisits=filteredVisits.filter(vi=>(vi.outlet_nama||'').toLowerCase().includes(rvSearch));
   const e=el('list-visit');
   if(!filteredVisits.length){e.innerHTML='<div class="empty">Belum ada kunjungan</div>';return;}
-  e.innerHTML=filteredVisits.slice(0,30).map(v=>`
+  const tampil=filteredVisits.slice(0,_visitLimit);
+  e.innerHTML=tampil.map(v=>`
     <div class="card" style="margin-bottom:8px">
       <div class="row"><span class="row-label tb">${v.outlet_nama}</span><span style="color:var(--text3)">${v.tgl}</span></div>
       <div class="row"><span class="row-label">Laku</span><span class="tg tb">${v.laku} bungkus</span></div>
@@ -914,8 +1026,11 @@ function renderListVisit(){
       ${(v.tf_mandiri||0)>0?`<div class="row"><span class="row-label">🏦 Sudah TF Mandiri</span><span class="tb" style="color:#2563eb">${idr(v.tf_mandiri)}</span></div>`:''}
       ${v.bayar_tunai>0&&(v.tf_mandiri||0)<v.bayar_tunai?`<button class="btn btn-sm" style="margin-top:6px;background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe" onclick="bukaKonversiTF('${v.id}')">🏦 Konversi ke TF Mandiri</button>`:''}
       ${ROLE==='owner'?`<button class="btn btn-danger btn-sm" style="margin-top:6px" onclick="hapusVisit('${v.id}',${v.laku},${v.omzet},${v.laba},${v.hpp},${v.bayar_tunai||0},${v.bayar_bon||0},${v.refill},${v.sisa},${v.rusak||0},'${v.outlet_id}',${v.stok_awal})">🗑 Hapus Visit</button>`:''}
-    </div>`).join('');
+    </div>`).join('')
+    +(filteredVisits.length>_visitLimit?`<button class="btn" style="width:100%;margin-top:4px" onclick="tampilLebihVisit()">⬇️ Tampilkan lebih banyak (${filteredVisits.length-_visitLimit} lagi)</button>`:'');
 }
+
+function tampilLebihVisit(){_visitLimit+=30;renderListVisit();}
 
 // ─── KONVERSI TUNAI → TF MANDIRI ──────────────────────────
 let _konversiVisitId=null;
@@ -934,11 +1049,11 @@ function bukaKonversiTF(visitId){
 }
 
 async function konfirmasiKonversiTF(){
-  const v=VISITS.find(x=>x.id===_konversiVisitId);
-  if(!v){toast('Visit tidak ditemukan');return;}
+  const vis=VISITS.find(x=>x.id===_konversiVisitId);
+  if(!vis){toast('Visit tidak ditemukan');return;}
   const nom=+v('ktf-nom');
-  const sudahTF=v.tf_mandiri||0;
-  const sisaBisaTF=(v.bayar_tunai||0)-sudahTF;
+  const sudahTF=vis.tf_mandiri||0;
+  const sisaBisaTF=(vis.bayar_tunai||0)-sudahTF;
   if(!nom||nom<=0){toast('Isi nominal');return;}
   if(nom>sisaBisaTF){toast('Melebihi sisa tunai yang bisa dipindah: '+idr(sisaBisaTF));return;}
   if(ST.kas<nom){toast('Kas tidak cukup: '+idr(ST.kas));return;}
@@ -946,10 +1061,11 @@ async function konfirmasiKonversiTF(){
   const newTF=sudahTF+nom;
   await sb('PATCH','visits',{tf_mandiri:newTF},'?id=eq.'+_konversiVisitId);
   const vIdx=VISITS.findIndex(x=>x.id===_konversiVisitId);
-  if(vIdx>=0)VISITS[vIdx]={...v,tf_mandiri:newTF};
+  if(vIdx>=0)VISITS[vIdx]={...vis,tf_mandiri:newTF};
   // Kas berkurang, Mandiri bertambah
   await saveState({kas:ST.kas-nom,bank:ST.bank+nom});
-  await addJurnal('kas',`Konversi TF Mandiri ${v.outlet_nama}: Kas -${idr(nom,true)} → Mandiri +${idr(nom,true)}`,today());
+  await addJurnal('kas',`Konversi TF Mandiri ${vis.outlet_nama}: Kas -${idr(nom,true)} → Mandiri +${idr(nom,true)}`,today(),{akun:'kas',keluar:nom});
+  await addJurnal('kas',`Terima TF Mandiri ${vis.outlet_nama}: dari kas ${idr(nom,true)}`,today(),{akun:'bank',masuk:nom});
   closeModal('modal-konversi-tf');
   toast('✅ '+idr(nom)+' dipindah ke Mandiri');
   renderListVisit();
@@ -1100,7 +1216,8 @@ async function simpanClosing(){
   const res=await sb('POST','closing',closingRow);
   if(res&&res.length)CLOSING.unshift(res[0]);else CLOSING.unshift(closingRow);
   await saveState(patch);
-  await addJurnal('closing',`Closing: laba ${idr(bhLaba,true)} | keluar ${idr(totalKasBerkurang,true)} (${sumberDana})`);
+  await addJurnal('closing',`Closing: laba ${idr(bhLaba,true)} | keluar ${idr(totalKasBerkurang,true)} (${sumberDana})`,null,dariKas>0?{akun:'kas',keluar:dariKas}:null);
+  if(dariBank>0)await addJurnal('closing',`Closing: ambil dari Mandiri ${idr(dariBank,true)}`,null,{akun:'bank',keluar:dariBank});
   setv('bh-input','');
   el('prev-bh').classList.remove('show');
   KASBON=await sb('GET','kasbon',null,'?order=created_at.desc')||[];
@@ -1198,8 +1315,13 @@ async function beliKacang(){
       patch.bank=ST.bank-bayar;
     }
   }
+  const bayarDariKas=bayar>0&&dari==='kas'?Math.min(ST.kas,bayar):0;
+  const bayarDariBank=bayar>0&&dari==='bank'?bayar:0;
   await saveState(patch);
-  await addJurnal('kas',`Beli ${kal} kaleng | total ${idr(total,true)} | hutang baru ${idr(hutangBaru,true)}`,tgl);
+  let mutasiBeli=null;
+  if(bayarDariKas>0)mutasiBeli={akun:'kas',keluar:bayarDariKas};
+  else if(bayarDariBank>0)mutasiBeli={akun:'bank',keluar:bayarDariBank};
+  await addJurnal('kas',`Beli ${kal} kaleng | total ${idr(total,true)} | bayar ${idr(bayar,true)} | hutang baru ${idr(hutangBaru,true)}`,tgl,mutasiBeli);
   setv('sup-kal','');setv('sup-bayar','');
   toast(`✅ ${kal} kaleng dicatat!`);renderAll();
 }
@@ -1214,7 +1336,7 @@ async function bayarSupplier(){
     // Kas cukup - bayar normal
     if(dari==='kas')patch.kas=ST.kas-nom;else patch.bank=ST.bank-nom;
     await saveState(patch);
-    await addJurnal('kas',`Bayar supplier ${idr(nom,true)} dari ${dari==='kas'?'Kas':'Bank'}`,tgl);
+    await addJurnal('kas',`Bayar supplier ${idr(nom,true)} dari ${dari==='kas'?'Kas':'Bank'}`,tgl,{akun:dari==='kas'?'kas':'bank',keluar:nom});
     setv('hs-nom','');
     toast('✅ Pembayaran supplier dicatat!');renderAll();
   } else {
@@ -1233,7 +1355,7 @@ async function bayarSupplier(){
     if(dari==='kas')patch.kas=0;else patch.bank=0;
     patch.utang_owner=(ST.utang_owner||0)+kurang;
     await saveState(patch);
-    await addJurnal('kas',`Bayar supplier ${idr(nom,true)} | kas ${idr(saldoAkun,true)} + pribadi ${idr(kurang,true)}`,tgl);
+    await addJurnal('kas',`Bayar supplier ${idr(nom,true)} | ${dari==='kas'?'kas':'bank'} ${idr(saldoAkun,true)} + pribadi ${idr(kurang,true)}`,tgl,saldoAkun>0?{akun:dari==='kas'?'kas':'bank',keluar:saldoAkun}:null);
     setv('hs-nom','');
     toast('✅ Supplier dibayar! KBB utang ke lo: '+idr(kurang));renderAll();
   }
@@ -1247,7 +1369,7 @@ async function simpanOps(){
   if(ST.kas>=nom){
     patch.kas=ST.kas-nom;
     await saveState(patch);
-    await addJurnal('kas',`${jenis}: ${ket||'-'} | ${idr(nom,true)}`,tgl);
+    await addJurnal('kas',`${jenis}: ${ket||'-'} | ${idr(nom,true)}`,tgl,{akun:'kas',keluar:nom});
     setv('op-nom','');setv('op-ket','');
     toast('✅ Pengeluaran dicatat!');renderAll();
   } else {
@@ -1257,10 +1379,11 @@ async function simpanOps(){
       '\n\nTambal dari uang pribadi lo?\n(KBB catat utang ke owner: '+idr(kurang)+')'
     );
     if(!tambal)return;
+    const kasDipakai=ST.kas;
     patch.kas=0;
     patch.utang_owner=(ST.utang_owner||0)+kurang;
     await saveState(patch);
-    await addJurnal('kas',`${jenis}: ${ket||'-'} | ${idr(nom,true)} (pribadi: ${idr(kurang,true)})`,tgl);
+    await addJurnal('kas',`${jenis}: ${ket||'-'} | ${idr(nom,true)} (pribadi: ${idr(kurang,true)})`,tgl,kasDipakai>0?{akun:'kas',keluar:kasDipakai}:null);
     setv('op-nom','');setv('op-ket','');
     toast('✅ Pengeluaran dicatat! KBB utang ke lo: '+idr(kurang));renderAll();
   }
@@ -1292,7 +1415,9 @@ async function simpanUpdateSaldo(){
   const patch={};
   if(_updateSaldoTipe==='kas')patch.kas=nomBaru;else patch.bank=nomBaru;
   await saveState(patch);
-  await addJurnal('kas',`Update saldo ${label}: ${idr(nilaiLama,true)} → ${idr(nomBaru,true)} (${selisih>=0?'+':''}${idr(selisih,true)})${ket?' | '+ket:''}`,today());
+  const akunMut=_updateSaldoTipe==='kas'?'kas':'bank';
+  const mutSaldo=selisih>0?{akun:akunMut,masuk:selisih}:(selisih<0?{akun:akunMut,keluar:-selisih}:null);
+  await addJurnal('kas',`Update saldo ${label}: ${idr(nilaiLama,true)} → ${idr(nomBaru,true)} (${selisih>=0?'+':''}${idr(selisih,true)})${ket?' | '+ket:''}`,today(),mutSaldo);
   closeModal('modal-update-saldo');
   toast('✅ Saldo '+label+' diupdate jadi '+idr(nomBaru));
   renderAll();
@@ -1333,7 +1458,7 @@ async function ambilPiutangOwner(){
     kas:ST.kas-nom,
     utang_owner:Math.max(0,(ST.utang_owner||0)-nom)
   });
-  await addJurnal('kas',`Owner ambil piutang ${idr(nom,true)} dari kas`);
+  await addJurnal('kas',`Owner ambil piutang ${idr(nom,true)} dari kas`,null,{akun:'kas',keluar:nom});
   setv('po-nom','');
   toast('✅ Piutang owner diambil: '+idr(nom));renderAll();
 }
@@ -1346,7 +1471,7 @@ async function setorKas(){
   if(!ket.trim()){toast('Isi keterangan');return;}
   if(!confirm('Setor kas '+idr(nom)+'?\nKeterangan: '+ket+'\n\nLanjut?'))return;
   await saveState({kas:ST.kas+nom});
-  await addJurnal('kas',`Setor kas: ${ket} | +${idr(nom,true)}`,tgl);
+  await addJurnal('kas',`Setor kas: ${ket} | +${idr(nom,true)}`,tgl,{akun:'kas',masuk:nom});
   setv('sk-nom','');setv('sk-ket','');
   closeModal('modal-setor-kas');
   toast('✅ Kas +'+idr(nom,true));renderAll();
@@ -1400,7 +1525,7 @@ async function konfirmasiLunasi(){
   if(oIdx>=0)OUTLETS[oIdx]={...o,piutang:newPiutang};
   // Piutang dihitung dari total outlet (jangan kurangi ST.piutang manual = dobel)
   await saveState({kas:ST.kas+nom,piutang:outletPiutangTotal()});
-  await addJurnal('kas',`Lunasi bon ${_lunasiOutletNama}: +${idr(nom,true)}`,today());
+  await addJurnal('kas',`Lunasi bon ${_lunasiOutletNama}: +${idr(nom,true)}`,today(),{akun:'kas',masuk:nom});
   closeModal('modal-lunasi-bon');
   toast('✅ Bon '+_lunasiOutletNama+' dilunasi '+idr(nom));
   renderDaftarBon();
@@ -1411,6 +1536,7 @@ async function konfirmasiLunasi(){
 async function simpanKasbon(){
   const nom=+v('kb-nom'),ket=v('kb-ket'),tgl=v('kb-tgl');
   if(!nom){toast('Isi nominal');return;}
+  const kasDipakaiKasbon=Math.min(ST.kas,nom);
   if(ST.kas<nom){
     const ok=confirm('Kas tidak cukup!\nKas: '+idr(ST.kas)+'\nKurang: '+idr(nom-ST.kas)+'\n\nTambal dari uang pribadi lo?\n(KBB catat utang ke owner)');
     if(!ok)return;
@@ -1430,7 +1556,7 @@ async function simpanKasbon(){
     const res=await sb('POST','kasbon',row);
     if(res&&res.length)KASBON.unshift(res[0]);else KASBON.unshift(row);
   }
-  await addJurnal('kas',`Kasbon Ilham: ${ket||'-'} ${idr(nom,true)} (kas -${idr(nom,true)})`,tgl);
+  await addJurnal('kas',`Kasbon Ilham: ${ket||'-'} ${idr(nom,true)} (kas -${idr(nom,true)})`,tgl,kasDipakaiKasbon>0?{akun:'kas',keluar:kasDipakaiKasbon}:null);
   setv('kb-nom','');setv('kb-ket','');
   closeModal('modal-kasbon');
   toast('✅ Kasbon +'+idr(nom,true)+' | Kas -'+idr(nom,true));

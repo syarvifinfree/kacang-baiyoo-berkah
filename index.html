@@ -243,8 +243,8 @@
   <!-- PAGE: NERACA -->
   <div class="page active" id="page-neraca">
     <div class="mg">
-      <div class="met"><div class="met-label">💵 Uang Kas</div><div class="met-val" id="n-kas">-</div><div class="met-sub">tunai</div></div>
-      <div class="met"><div class="met-label">🏦 Bank Mandiri</div><div class="met-val" id="n-bank">-</div><div class="met-sub">rekening</div></div>
+      <div class="met" onclick="bukaRiwayatMutasi('kas')" style="cursor:pointer"><div class="met-label">💵 Uang Kas</div><div class="met-val" id="n-kas">-</div><div class="met-sub" style="color:var(--blue)">tap untuk riwayat</div></div>
+      <div class="met" onclick="bukaRiwayatMutasi('bank')" style="cursor:pointer"><div class="met-label">🏦 Bank Mandiri</div><div class="met-val" id="n-bank">-</div><div class="met-sub" style="color:var(--blue)">tap untuk riwayat</div></div>
       <div class="met"><div class="met-label">📦 Stok kaleng</div><div class="met-val" id="n-kal">-</div><div class="met-sub">kaleng</div></div>
       <div class="met"><div class="met-label">🛍 Stok Gudang</div><div class="met-val" id="n-gudang">-</div><div class="met-sub">bungkus (Ilham)</div></div>
       <div class="met"><div class="met-label">🏪 Kacang di Kedai</div><div class="met-val" id="n-outlet-stok">-</div><div class="met-sub">kacang di kedai</div></div>
@@ -316,6 +316,17 @@
         <div class="row"><span class="row-label">Untung/bungkus (estimasi)</span><span class="tg" id="pp-margin">-</span></div>
       </div>
       <button class="btn btn-primary" onclick="simpanProduksi()">⚙️ Catat Produksi</button>
+    </div>
+    <div class="sec">Koreksi Stok Gudang</div>
+    <div class="card">
+      <div class="alert alert-info" style="margin-bottom:10px">📦 Untuk stok opname: sesuaikan stok gudang di app dengan hitungan fisik. Selisih dicatat di jurnal.</div>
+      <div class="row" style="margin-bottom:8px">
+        <span class="row-label">Stok gudang di app</span>
+        <span class="tb" id="kg-app">- bungkus</span>
+      </div>
+      <label>Stok gudang fisik (hasil hitung)</label>
+      <input type="number" id="kg-fisik" placeholder="cth: 0">
+      <button class="btn btn-primary" style="margin-top:10px" onclick="koreksiGudang()">📦 Koreksi Stok Gudang</button>
     </div>
     <div class="sec">Riwayat produksi</div>
     <div id="list-prod"><div class="loading">Memuat...</div></div>
@@ -520,6 +531,10 @@
     <div class="mg">
       <div class="met" onclick="bukaUpdateSaldo('kas')" style="cursor:pointer"><div class="met-label">💵 Uang Kas ✏️</div><div class="met-val" id="kb-kas">-</div></div>
       <div class="met" onclick="bukaUpdateSaldo('bank')" style="cursor:pointer"><div class="met-label">🏦 Bank Mandiri ✏️</div><div class="met-val" id="kb-bank">-</div></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:4px">
+      <button class="btn btn-sm" style="flex:1" onclick="bukaRiwayatMutasi('kas')">📜 Riwayat Kas</button>
+      <button class="btn btn-sm" style="flex:1" onclick="bukaRiwayatMutasi('bank')">📜 Riwayat Mandiri</button>
     </div>
 
     <div class="sec">Setor Kas</div>
@@ -789,6 +804,23 @@
       <button class="btn" onclick="closeModal('modal-lunasi-bon')">Batal</button>
       <button class="btn btn-primary" onclick="konfirmasiLunasi()">✅ Lunasi</button>
     </div>
+  </div>
+</div>
+
+<!-- MODAL: RIWAYAT MUTASI KAS / MANDIRI -->
+<div class="modal-overlay" id="modal-mutasi" onclick="closeModalOut(event,'modal-mutasi')">
+  <div class="modal" style="max-height:85vh;display:flex;flex-direction:column">
+    <div class="modal-title" id="mut-title">💵 Riwayat Uang Kas</div>
+    <div style="display:flex;border-bottom:1px solid var(--border);margin-bottom:10px">
+      <button id="mut-tab-kas" onclick="switchMutasiTab('kas')" style="flex:1;padding:9px;border:none;background:var(--bg);font-size:13px;font-weight:600;color:var(--text);border-bottom:2px solid var(--text);cursor:pointer">💵 Kas</button>
+      <button id="mut-tab-bank" onclick="switchMutasiTab('bank')" style="flex:1;padding:9px;border:none;background:var(--bg);font-size:13px;font-weight:500;color:var(--text3);border-bottom:2px solid transparent;cursor:pointer">🏦 Mandiri</button>
+    </div>
+    <div class="row" style="margin-bottom:8px;padding:8px 12px;background:#f0faf0;border-radius:8px">
+      <span class="row-label">Saldo sekarang</span>
+      <span class="tb" id="mut-saldo" style="font-size:16px;font-weight:700">-</span>
+    </div>
+    <div id="mut-list" style="overflow-y:auto;flex:1"><div class="loading">Memuat...</div></div>
+    <button class="btn" style="margin-top:10px" onclick="closeModal('modal-mutasi')">Tutup</button>
   </div>
 </div>
 
