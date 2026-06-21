@@ -1007,7 +1007,14 @@ function renderListVisit(){
   }
   const filterArea=v('rv-area')||'';
   const filterOutlet=v('rv-outlet')||'';
+  const filterRute=v('rv-rute')||'';
+  const filterTgl=v('rv-tgl')||'';
   let filteredVisits=VISITS;
+  if(filterRute) filteredVisits=filteredVisits.filter(vi=>{
+    const o=OUTLETS.find(o=>o.id===vi.outlet_id);
+    return o&&Number(o.rute)===Number(filterRute);
+  });
+  if(filterTgl) filteredVisits=filteredVisits.filter(vi=>vi.tgl===filterTgl);
   if(filterArea) filteredVisits=filteredVisits.filter(vi=>{
     const o=OUTLETS.find(o=>o.id===vi.outlet_id);
     return o&&o.alamat===filterArea;
@@ -1016,8 +1023,23 @@ function renderListVisit(){
   if(rvSearch) filteredVisits=filteredVisits.filter(vi=>(vi.outlet_nama||'').toLowerCase().includes(rvSearch));
   const e=el('list-visit');
   if(!filteredVisits.length){e.innerHTML='<div class="empty">Belum ada kunjungan</div>';return;}
+  // Ringkasan total dari hasil filter
+  const sumLaku=filteredVisits.reduce((s,vi)=>s+(vi.laku||0),0);
+  const sumOmzet=filteredVisits.reduce((s,vi)=>s+(vi.omzet||0),0);
+  const sumTunai=filteredVisits.reduce((s,vi)=>s+(vi.bayar_tunai||0),0);
+  const sumBon=filteredVisits.reduce((s,vi)=>s+(vi.bayar_bon||0),0);
+  const sumBonLama=filteredVisits.reduce((s,vi)=>s+(vi.bayar_bon_lama||0),0);
+  const ringkasan=`<div class="card" style="margin-bottom:10px;background:var(--blue-bg);border:1px solid #bfdbfe">
+    <div style="font-weight:700;font-size:13px;margin-bottom:6px">📊 Ringkasan (${filteredVisits.length} kunjungan)</div>
+    <div class="row"><span class="row-label">Total laku</span><span class="tb">${sumLaku} bungkus</span></div>
+    <div class="row"><span class="row-label">Total omzet</span><span class="tb tg">${idr(sumOmzet)}</span></div>
+    <div class="row"><span class="row-label">Bayar tunai</span><span class="tg">${idr(sumTunai)}</span></div>
+    ${sumBon>0?`<div class="row"><span class="row-label">Bon baru</span><span class="tr">${idr(sumBon)}</span></div>`:''}
+    ${sumBonLama>0?`<div class="row"><span class="row-label">Bayar bon lama</span><span class="tg">${idr(sumBonLama)}</span></div>`:''}
+    <div class="row" style="border-top:1px solid #bfdbfe;margin-top:4px;padding-top:4px"><span class="row-label tb">Kas masuk</span><span class="tb tg">${idr(sumTunai+sumBonLama)}</span></div>
+  </div>`;
   const tampil=filteredVisits.slice(0,_visitLimit);
-  e.innerHTML=tampil.map(v=>`
+  e.innerHTML=ringkasan+tampil.map(v=>`
     <div class="card" style="margin-bottom:8px">
       <div class="row"><span class="row-label tb">${v.outlet_nama}</span><span style="color:var(--text3)">${v.tgl}${v.oleh&&v.oleh!=='-'?' · '+v.oleh:''}</span></div>
       <div class="row"><span class="row-label">Laku</span><span class="tg tb">${v.laku} bungkus</span></div>

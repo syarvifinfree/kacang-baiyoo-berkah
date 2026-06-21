@@ -418,6 +418,22 @@
     <div class="card" style="margin-top:8px">
       <div class="fg">
         <div>
+          <label>Filter rute</label>
+          <select id="rv-rute" onchange="renderListVisit()">
+            <option value="">Semua rute</option>
+            <option value="1">Rute 1</option>
+            <option value="2">Rute 2</option>
+            <option value="3">Rute 3</option>
+            <option value="4">Rute 4</option>
+          </select>
+        </div>
+        <div>
+          <label>Filter tanggal</label>
+          <input type="date" id="rv-tgl" onchange="renderListVisit()">
+        </div>
+      </div>
+      <div class="fg" style="margin-top:8px">
+        <div>
           <label>Filter area</label>
           <select id="rv-area" onchange="renderListVisit()">
             <option value="">Semua area</option>
