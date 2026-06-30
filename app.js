@@ -273,6 +273,7 @@ function renderNeraca(){
   setText('n-cad',idr(ST.dana_cad,true));setText('n-modal',idr(ST.modal,true));
   setText('n-laba',idr(ST.laba_akum,true));setText('n-labau',idr(ST.laba_u,true));
   setText('kb-kas',idr(ST.kas,true));setText('kb-bank',idr(ST.bank,true));
+  setText('skm-kas',idr(ST.kas,true));
   setText('kb-hsup',idr(ST.hutang_sup,true));
   // Total utang ringkas
   const totalUtang=(ST.hutang_sup||0)+(ST.utang_upah||0)+(ST.utang_owner||0);
@@ -1345,67 +1346,61 @@ async function inputManualOmzet(){
 // ─── KAS & BANK ───────────────────────────────────────────
 async function beliKacang(){
   const kal=+v('sup-kal'),hkal=+v('sup-hkal')||270000,
-    bayar=+v('sup-bayar')||0,dari=v('sup-dari'),tgl=v('sup-tgl');
+    bayar=+v('sup-bayar')||0,tgl=v('sup-tgl');
   if(!kal){toast('Isi jumlah kaleng');return;}
   const total=kal*hkal,hutangBaru=total-bayar;
-  if(bayar>0){
-    if(dari==='kas'&&ST.kas<bayar){
-      const kurang=bayar-ST.kas;
-      const ok=confirm('Kas tidak cukup!\nKas: '+idr(ST.kas)+'\nKurang: '+idr(kurang)+'\n\nTambal dari uang pribadi?\n(KBB catat utang ke owner: '+idr(kurang)+')');
-      if(!ok)return;
-    }
-    if(dari==='bank'&&ST.bank<bayar){toast('Saldo bank tidak cukup');return;}
-  }
   const patch={stok_kal:ST.stok_kal+kal,hutang_sup:ST.hutang_sup+hutangBaru};
+  let mutasiBeli=null;
   if(bayar>0){
-    if(dari==='kas'){
-      const kurang=Math.max(0,bayar-ST.kas);
-      patch.kas=Math.max(0,ST.kas-bayar);
-      if(kurang>0)patch.utang_owner=(ST.utang_owner||0)+kurang;
-    } else {
+    // Bayar SELALU dari Mandiri (transfer)
+    if(ST.bank>=bayar){
       patch.bank=ST.bank-bayar;
+      mutasiBeli={akun:'bank',keluar:bayar};
+    } else {
+      const kurang=bayar-ST.bank;
+      const ok=confirm('Saldo Mandiri tidak cukup!\nMandiri: '+idr(ST.bank)+'\nKurang: '+idr(kurang)+'\n\nTambal dari uang pribadi?\n(KBB catat utang ke owner: '+idr(kurang)+')');
+      if(!ok)return;
+      const bankDipakai=ST.bank;
+      patch.bank=0;
+      patch.utang_owner=(ST.utang_owner||0)+kurang;
+      if(bankDipakai>0)mutasiBeli={akun:'bank',keluar:bankDipakai};
     }
   }
-  const bayarDariKas=bayar>0&&dari==='kas'?Math.min(ST.kas,bayar):0;
-  const bayarDariBank=bayar>0&&dari==='bank'?bayar:0;
   await saveState(patch);
-  let mutasiBeli=null;
-  if(bayarDariKas>0)mutasiBeli={akun:'kas',keluar:bayarDariKas};
-  else if(bayarDariBank>0)mutasiBeli={akun:'bank',keluar:bayarDariBank};
-  await addJurnal('kas',`Beli ${kal} kaleng | total ${idr(total,true)} | bayar ${idr(bayar,true)} | hutang baru ${idr(hutangBaru,true)}`,tgl,mutasiBeli);
+  await addJurnal('kas',`Beli ${kal} kaleng | total ${idr(total,true)} | bayar ${idr(bayar,true)} (Mandiri) | hutang baru ${idr(hutangBaru,true)}`,tgl,mutasiBeli);
   setv('sup-kal','');setv('sup-bayar','');
   toast(`✅ ${kal} kaleng dicatat!`);renderAll();
 }
 
 async function bayarSupplier(){
-  const nom=+v('hs-nom'),dari=v('hs-dari'),tgl=v('hs-tgl');
+  const nom=+v('hs-nom'),tgl=v('hs-tgl');
   if(!nom){toast('Isi nominal');return;}
-  const saldoAkun=dari==='kas'?ST.kas:ST.bank;
+  // Bayar supplier SELALU dari Mandiri (transfer)
   const patch={hutang_sup:Math.max(0,ST.hutang_sup-nom)};
-  if(saldoAkun>=nom){
-    // Kas cukup - bayar normal
-    if(dari==='kas')patch.kas=ST.kas-nom;else patch.bank=ST.bank-nom;
+  if(ST.bank>=nom){
+    // Mandiri cukup - bayar normal
+    patch.bank=ST.bank-nom;
     await saveState(patch);
-    await addJurnal('kas',`Bayar supplier ${idr(nom,true)} dari ${dari==='kas'?'Kas':'Bank'}`,tgl,{akun:dari==='kas'?'kas':'bank',keluar:nom});
+    await addJurnal('kas',`Bayar supplier ${idr(nom,true)} dari Mandiri`,tgl,{akun:'bank',keluar:nom});
     setv('hs-nom','');
     toast('✅ Pembayaran supplier dicatat!');renderAll();
   } else {
-    // Kas kurang - tawarkan tambal dari uang pribadi
-    const kurang=nom-saldoAkun;
+    // Mandiri kurang - tawarkan tambal dari uang pribadi
+    const kurang=nom-ST.bank;
     const tambal=confirm(
-      'Kas tidak cukup!\n\n'+
+      'Saldo Mandiri tidak cukup!\n\n'+
       'Mau bayar: '+idr(nom)+
-      '\nKas tersedia: '+idr(saldoAkun)+
+      '\nMandiri tersedia: '+idr(ST.bank)+
       '\nKekurangan: '+idr(kurang)+
       '\n\nTambal '+idr(kurang)+' dari uang pribadi lo?'+
       '\n(KBB akan catat utang ke owner sebesar '+idr(kurang)+')'
     );
     if(!tambal)return;
-    // Kas habis, kekurangan dari kantong pribadi
-    if(dari==='kas')patch.kas=0;else patch.bank=0;
+    const bankDipakai=ST.bank;
+    patch.bank=0;
     patch.utang_owner=(ST.utang_owner||0)+kurang;
     await saveState(patch);
-    await addJurnal('kas',`Bayar supplier ${idr(nom,true)} | ${dari==='kas'?'kas':'bank'} ${idr(saldoAkun,true)} + pribadi ${idr(kurang,true)}`,tgl,saldoAkun>0?{akun:dari==='kas'?'kas':'bank',keluar:saldoAkun}:null);
+    await addJurnal('kas',`Bayar supplier ${idr(nom,true)} | Mandiri ${idr(bankDipakai,true)} + pribadi ${idr(kurang,true)}`,tgl,bankDipakai>0?{akun:'bank',keluar:bankDipakai}:null);
     setv('hs-nom','');
     toast('✅ Supplier dibayar! KBB utang ke lo: '+idr(kurang));renderAll();
   }
@@ -1520,6 +1515,18 @@ async function setorKas(){
   setv('sk-nom','');setv('sk-ket','');
   closeModal('modal-setor-kas');
   toast('✅ Kas +'+idr(nom,true));renderAll();
+}
+
+async function setorKasKeMandiri(){
+  const nom=+v('skm-nom');
+  if(!nom||nom<=0){toast('Isi nominal setor');return;}
+  if(nom>ST.kas){toast('Kas tidak cukup! Kas: '+idr(ST.kas));return;}
+  if(!confirm(`Setor kas ke Mandiri?\n\nKas -${idr(nom)} → Mandiri +${idr(nom)}\n\nKas: ${idr(ST.kas)} → ${idr(ST.kas-nom)}\nMandiri: ${idr(ST.bank)} → ${idr(ST.bank+nom)}\n\nLanjut?`))return;
+  await saveState({kas:ST.kas-nom,bank:ST.bank+nom});
+  await addJurnal('kas',`Setor kas ke Mandiri: Kas -${idr(nom,true)} → Mandiri +${idr(nom,true)}`,today(),{akun:'kas',keluar:nom});
+  await addJurnal('kas',`Terima setoran dari kas: +${idr(nom,true)}`,today(),{akun:'bank',masuk:nom});
+  setv('skm-nom','');
+  toast('✅ '+idr(nom)+' disetor ke Mandiri');renderAll();
 }
 
 // ─── DAFTAR BON ───────────────────────────────────────────

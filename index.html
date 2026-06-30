@@ -559,15 +559,21 @@
       <button class="btn btn-primary" onclick="openModal('modal-setor-kas')">+ Setor Kas</button>
     </div>
 
+    <div class="sec">Setor Kas ke Mandiri</div>
+    <div class="card">
+      <div class="alert alert-info" style="margin-bottom:10px">🏦 Pindahkan uang kas tunai ke Bank Mandiri (misal setelah ngampas, sebelum bayar supplier).</div>
+      <div class="row" style="margin-bottom:8px"><span class="row-label">Kas tersedia</span><span class="tb" id="skm-kas">-</span></div>
+      <label>Nominal setor (Rp)</label><input type="number" id="skm-nom" placeholder="0">
+      <button class="btn btn-primary" style="margin-top:8px" onclick="setorKasKeMandiri()">🏦 Setor ke Mandiri</button>
+    </div>
+
     <div class="sec">Beli Kacang</div>
     <div class="card">
+      <div class="alert alert-info" style="margin-bottom:10px">💳 Pembayaran via transfer dari Bank Mandiri</div>
       <div class="fg" style="margin-bottom:10px">
         <div><label>Jumlah kaleng</label><input type="number" id="sup-kal" placeholder="cth: 10"></div>
         <div><label>Harga/kaleng (Rp)</label><input type="number" id="sup-hkal" value="270000"></div>
         <div><label>Dibayar sekarang (Rp)</label><input type="number" id="sup-bayar" placeholder="0"></div>
-        <div><label>Dari</label>
-          <select id="sup-dari"><option value="bank">Bank (tf pribadi)</option><option value="kas">Uang Kas</option></select>
-        </div>
       </div>
       <label>Tanggal</label><input type="date" id="sup-tgl">
       <div style="font-size:11px;color:var(--text3);margin-bottom:8px">Sisa belum dibayar → otomatis hutang supplier</div>
@@ -577,14 +583,10 @@
     <div class="sec">Bayar Utang Supplier</div>
     <div class="card">
       <div class="row" style="margin-bottom:10px"><span class="row-label">Sisa Utang</span><span class="tr tb" id="kb-hsup">-</span></div>
-      <div class="fg" style="margin-bottom:10px">
-        <div><label>Nominal bayar (Rp)</label><input type="number" id="hs-nom" placeholder="0"></div>
-        <div><label>Dari</label>
-          <select id="hs-dari"><option value="kas">Uang Kas</option><option value="bank">Bank Mandiri</option></select>
-        </div>
-      </div>
+      <div class="alert alert-info" style="margin-bottom:10px">💳 Pembayaran supplier via transfer dari Bank Mandiri</div>
+      <label>Nominal bayar (Rp)</label><input type="number" id="hs-nom" placeholder="0">
       <label>Tanggal</label><input type="date" id="hs-tgl">
-      <button class="btn btn-primary" onclick="bayarSupplier()">💳 Bayar Supplier</button>
+      <button class="btn btn-primary" onclick="bayarSupplier()">💳 Bayar Supplier (dari Mandiri)</button>
     </div>
 
     <div class="sec" id="sec-piutang-owner" style="display:none">Ambil Uang Syarvi</div>
